@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Data Playground Python</title>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0b1d3a; color: #fff; font-family: Arial, sans-serif; }
+    header { padding: 16px 20px; border-bottom: 1px solid #1f3a66; font-family: 'Orbitron', sans-serif; color: #4fc3f7; font-size: 1.2rem; }
+    header span { color: #f5b301; }
+    header a { color: #cfd8e3; font-family: Arial, sans-serif; font-size: 0.85rem; margin-left: 14px; text-decoration: none; }
+    main { max-width: 1000px; margin: 0 auto; padding: 20px; }
+    section { background: #112b52; border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+    h2 { margin: 0 0 12px; font-size: 1.05rem; color: #f5b301; }
+    button { background: #f5b301; color: #0b1d3a; border: none; padding: 9px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-right: 10px; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    input[type=file] { color: #cfd8e3; margin-top: 10px; }
+    textarea { width: 100%; height: 180px; background: #0b1d3a; color: #e6f1ff; border: 1px solid #2a4c80; border-radius: 6px; padding: 10px; font-family: Consolas, monospace; font-size: 0.95rem; margin-bottom: 10px; }
+    #status { margin: 10px 0; color: #4fc3f7; font-size: 0.9rem; }
+    #status.error { color: #ff7b7b; }
+    #files { margin-top: 12px; color: #cfd8e3; font-size: 0.9rem; }
+    #files b { color: #4fc3f7; }
+    #output { background: #0b1d3a; border: 1px solid #1f3a66; border-radius: 6px; padding: 12px; font-family: Consolas, monospace; font-size: 0.85rem; white-space: pre; overflow-x: auto; min-height: 50px; color: #e6f1ff; }
+    #figs img { max-width: 100%; margin-top: 14px; border-radius: 6px; display: block; }
+  </style>
+</head>
+<body>
+  <header>Data <span>Playground</span> &middot; Python &middot; v1
+    <a href="index.html">Home</a><a href="workbench.html">SQL Workbench</a>
+  </header>
+  <main>
+    <section>
+      <h2>1. Load your data</h2>
+      <button id="sampleBtn" disabled>Create sample file (sales.csv)</button>
+      <div><input type="file" id="csvFile" accept=".csv" disabled></div>
+      <div id="files">No files yet.</div>
+    </section>
+
+    <section>
+      <h2>2. Write Python</h2>
+      <textarea id="code" spellcheck="false">import pandas as pd
+
+df = pd.read_csv('sales.csv')
+print(df.shape)
+df.groupby('country')['amount'].sum()</textarea>
+      <button id="runBtn" disabled>Run (Ctrl+Enter)</button>
+      <div id="status">Starting...</div>
+    </section>
+
+    <section>
+      <h2>3. Output</h2>
+      <div id="output"></div>
+      <div id="figs"></div>
+    </section>
+  </main>
+
+  <script>
+    let pyodide = null;
+    const statusEl = document.getElementById('status');
+    const outEl = document.getElementById('output');
+    const figsEl = document.getElementById('figs');
+    const HOME = '/home/pyodide';
+
+    function setStatus(msg, isError) {
+      statusEl.textContent = msg;
+      statusEl.className = isError ? 'error' : '';
+    }
+
+    function showFiles() {
+      const names = pyodide.FS.readdir(HOME).filter(n => n !== '.' && n !== '..');
+      const box = document.getElementById('files');
+      box.innerHTML = names.length
+        ? 'Files you can use in Python: ' + names.map(n => '<b>' + n.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</b>').join(', ')
+        : 'No files yet.';
+    }
+
+    async function init() {
+      try {
+        setStatus('Loading Python engine. The first visit can take a minute or two...');
+        pyodide = await loadPyodide();
+        setStatus('Loading Pandas, NumPy and Matplotlib...');
+        await pyodide.loadPackage(['numpy', 'pandas', 'matplotlib']);
+        await pyodide.runPythonAsync(`
+import os
+os.chdir('/home/pyodide')
+import matplotlib
+matplotlib.use('AGG')
+import matplotlib.pyplot as plt
+from cycler import cycler
+import pandas as pd
+import numpy as np
+pd.set_option('display.width', 200)
+pd.set_option('display.max_columns', 30)
+plt.rcParams.update({
+    'figure.facecolor': '#112b52', 'axes.facecolor': '#112b52', 'savefig.facecolor': '#112b52',
+    'text.color': '#e6f1ff', 'axes.labelcolor': '#e6f1ff', 'xtick.color': '#cfd8e3',
+    'ytick.color': '#cfd8e3', 'axes.edgecolor': '#2a4c80', 'grid.color': '#1f3a66',
+    'axes.prop_cycle': cycler(color=['#4fc3f7', '#f5b301', '#81d4fa', '#ffd54f'])
+})
+`);
+        document.getElementById('sampleBtn').disabled = false;
+        document.getElementById('csvFile').disabled = false;
+        document.getElementById('runBtn').disabled = false;
+        showFiles();
+        setStatus('Ready. Create the sample file or upload a CSV, then run your code.');
+      } catch (e) {
+        setStatus('Could not load Python: ' + e.message, true);
+      }
+    }
+
+    async function runCode() {
+      const code = document.getElementById('code').value;
+      outEl.textContent = '';
+      figsEl.innerHTML = '';
+      setStatus('Running...');
+      pyodide.setStdout({ batched: s => { outEl.textContent += s + '\n'; } });
+      pyodide.setStderr({ batched: s => { outEl.textContent += s + '\n'; } });
+      try {
+        const result = await pyodide.runPythonAsync(code);
+        if (result !== undefined && result !== null) {
+          const text = pyodide.globals.get('repr')(result);
+          outEl.textContent += text + '\n';
+          if (result.destroy) result.destroy();
+        }
+        const figs = await pyodide.runPythonAsync(`
+import io, base64
+_out = []
+for _n in plt.get_fignums():
+    _f = plt.figure(_n)
+    _b = io.BytesIO()
+    _f.savefig(_b, format='png', dpi=110, bbox_inches='tight')
+    _out.append(base64.b64encode(_b.getvalue()).decode())
+plt.close('all')
+_out
+`);
+        const arr = figs.toJs();
+        figs.destroy();
+        arr.forEach(b64 => {
+          const img = document.createElement('img');
+          img.src = 'data:image/png;base64,' + b64;
+          figsEl.appendChild(img);
+        });
+        setStatus('Done.');
+      } catch (e) {
+        outEl.textContent += String(e.message || e);
+        setStatus('Your code raised an error. Read the message in the Output box.', true);
+      }
+      showFiles();
+    }
+
+    document.getElementById('sampleBtn').addEventListener('click', () => {
+      const csv = 'id,country,category,amount\n' +
+        '1,Nigeria,Electronics,120000\n2,Ghana,Fashion,45000\n3,Kenya,Home & Kitchen,78000\n' +
+        '4,Nigeria,Fashion,52000\n5,Rwanda,Electronics,99000\n6,South Africa,Beauty & Health,61000\n' +
+        '7,Ghana,Electronics,87000\n8,Kenya,Books & Stationery,23000\n9,Nigeria,Home & Kitchen,70000\n' +
+        '10,South Africa,Electronics,134000\n';
+      pyodide.FS.writeFile(HOME + '/sales.csv', csv);
+      showFiles();
+      setStatus('Created sales.csv. Use it with pd.read_csv("sales.csv").');
+    });
+
+    document.getElementById('csvFile').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        pyodide.FS.writeFile(HOME + '/' + file.name, reader.result);
+        showFiles();
+        setStatus('Uploaded "' + file.name + '". Use it with pd.read_csv("' + file.name + '").');
+        document.getElementById('code').value = "import pandas as pd\n\ndf = pd.read_csv('" + file.name + "')\nprint(df.shape)\ndf.head()";
+      };
+      reader.readAsText(file);
+    });
+
+    document.getElementById('runBtn').addEventListener('click', runCode);
+    document.getElementById('code').addEventListener('keydown', e => {
+      if (e.ctrlKey && e.key === 'Enter') runCode();
+    });
+
+    init();
+  </script>
+</body>
+</html>
