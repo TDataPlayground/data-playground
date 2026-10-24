@@ -6,40 +6,77 @@
   <title>Data Playground</title>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
   <style>
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
       background: #0b1d3a;
       color: #ffffff;
       font-family: Arial, sans-serif;
       text-align: center;
-      padding: 20px;
+      padding: 40px 20px;
     }
     h1 {
       font-family: 'Orbitron', sans-serif;
       font-size: 2.6rem;
-      margin: 0 0 10px;
+      margin: 20px 0 10px;
       color: #4fc3f7;
     }
     h1 span { color: #f5b301; }
-    p { font-size: 1.1rem; color: #cfd8e3; max-width: 500px; }
-    .badge {
-      margin-top: 24px;
-      padding: 8px 18px;
-      border: 1px solid #f5b301;
-      border-radius: 20px;
-      color: #f5b301;
-      font-size: 0.9rem;
+    .tagline { font-size: 1.1rem; color: #cfd8e3; max-width: 520px; margin: 0 auto 30px; line-height: 1.5; }
+    .cta {
+      display: inline-block;
+      background: #f5b301;
+      color: #0b1d3a;
+      padding: 14px 28px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 1.05rem;
+      text-decoration: none;
     }
+    .cards {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: center;
+      max-width: 900px;
+      margin: 50px auto 0;
+    }
+    .card {
+      flex: 1 1 240px;
+      background: #112b52;
+      border-radius: 10px;
+      padding: 20px;
+      text-align: left;
+    }
+    .card h3 { margin: 0 0 8px; color: #f5b301; font-size: 1.05rem; }
+    .card p { margin: 0; color: #cfd8e3; font-size: 0.92rem; line-height: 1.5; }
+    .soon { display: inline-block; margin-top: 10px; font-size: 0.75rem; color: #4fc3f7; border: 1px solid #4fc3f7; border-radius: 12px; padding: 2px 10px; }
+    footer { margin-top: 50px; color: #7f93b0; font-size: 0.85rem; }
   </style>
 </head>
 <body>
   <h1>Data <span>Playground</span></h1>
-  <p>Learn data analysis. Build real projects. Do your full analysis, all in one place.</p>
-  <div class="badge">Coming soon</div>
+  <p class="tagline">Learn data analysis. Build real projects. Do your full analysis, all in one place.</p>
+  <a class="cta" href="workbench.html">Open the Workbench</a>
+
+  <div class="cards">
+    <div class="card">
+      <h3>Analyse</h3>
+      <p>Load a CSV, write SQL, and chart your results right in the browser. Nothing to install.</p>
+    </div>
+    <div class="card">
+      <h3>Python</h3>
+      <p>Pandas and NumPy in the same workspace as your SQL.</p>
+      <span class="soon">Coming soon</span>
+    </div>
+    <div class="card">
+      <h3>Learn</h3>
+      <p>Follow the Data Playground lessons with the tools open beside you.</p>
+      <span class="soon">Coming soon</span>
+    </div>
+  </div>
+
+  <footer>Data Playground &middot; Free and open to learn on</footer>
 </body>
 </html>
