@@ -14,7 +14,9 @@
     main { max-width: 900px; margin: 0 auto; padding: 20px; }
     h1 { font-family: 'Orbitron', sans-serif; color: #4fc3f7; font-size: 1.6rem; margin: 10px 0 6px; }
     .sub { color: #cfd8e3; margin: 0 0 8px; }
-    #overall { color: #f5b301; font-size: 0.9rem; margin-bottom: 22px; }
+    #overall { color: #f5b301; font-size: 0.9rem; margin-bottom: 18px; }
+    #resume a { display: block; background: #f5b301; color: #0b1d3a; font-weight: bold; text-decoration: none; padding: 14px 18px; border-radius: 10px; margin-bottom: 22px; }
+    #resume small { display: block; font-weight: normal; opacity: 0.85; }
     .track { background: #112b52; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; border-left: 4px solid #2a4c80; }
     .track.live { border-left-color: #f5b301; }
     .thead { display: flex; gap: 14px; align-items: flex-start; }
@@ -23,7 +25,8 @@
     .thead p { margin: 0; color: #cfd8e3; font-size: 0.92rem; }
     .badge { margin-left: auto; font-size: 0.75rem; border: 1px solid #4fc3f7; color: #4fc3f7; border-radius: 12px; padding: 2px 10px; white-space: nowrap; }
     .badge.soon { border-color: #7f93b0; color: #7f93b0; }
-    .lesson { display: flex; justify-content: space-between; gap: 10px; align-items: center; background: #0b1d3a; border-radius: 8px; padding: 10px 14px; margin-top: 12px; color: #fff; text-decoration: none; }
+    .lesson { display: flex; justify-content: space-between; gap: 10px; align-items: center; background: #0b1d3a; border: 1px solid #1f3a66; border-radius: 8px; padding: 12px 14px; margin-top: 12px; color: #fff; text-decoration: none; }
+    .lesson:hover { border-color: #f5b301; }
     .lesson small { color: #4fc3f7; white-space: nowrap; }
     .lesson.done small { color: #81c784; }
   </style>
@@ -36,6 +39,7 @@
     <h1>Your learning path</h1>
     <p class="sub">Follow the tracks in order from beginner to professional, or jump to the topic you need. Every lesson runs on real data, right in your browser.</p>
     <div id="overall"></div>
+    <div id="resume"></div>
     <div id="tracks"></div>
   </main>
 
@@ -48,6 +52,8 @@
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
     const progress = loadProgress();
+    let last = null;
+    try { last = localStorage.getItem('dp_last'); } catch (e) {}
     const root = document.getElementById('tracks');
 
     if (typeof TRACKS === 'undefined' || typeof LESSONS === 'undefined') {
@@ -66,8 +72,11 @@
           const done = ex.filter(s => progress[s.id]).length;
           totalDone += done; totalAll += ex.length;
           const complete = ex.length > 0 && done === ex.length;
+          const label = complete
+            ? 'Completed \u2713 \u00b7 Review \u2192'
+            : (done > 0 ? 'Continue \u00b7 ' + done + ' / ' + ex.length + ' \u2192' : 'Start \u00b7 ' + ex.length + ' exercises \u2192');
           html += '<a class="lesson' + (complete ? ' done' : '') + '" href="lessons.html?lesson=' + encodeURIComponent(l.id) + '">' +
-            '<span>' + esc(l.title) + '</span><small>' + (complete ? 'Completed \u2713' : done + ' / ' + ex.length + ' exercises') + '</small></a>';
+            '<span>' + esc(l.title) + '</span><small>' + label + '</small></a>';
         });
         const el = document.createElement('section');
         el.className = 'track' + (lessons.length ? ' live' : '');
@@ -75,6 +84,12 @@
         root.appendChild(el);
       });
       document.getElementById('overall').textContent = 'Your progress: ' + totalDone + ' / ' + totalAll + ' exercises completed';
+
+      const lastLesson = last ? LESSONS.find(l => l.id === last) : null;
+      if (lastLesson) {
+        document.getElementById('resume').innerHTML =
+          '<a href="lessons.html?lesson=' + encodeURIComponent(lastLesson.id) + '">Continue where you stopped \u2192<small>' + esc(lastLesson.title) + '</small></a>';
+      }
     }
   </script>
 </body>
