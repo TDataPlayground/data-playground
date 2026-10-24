@@ -1,3 +1,13 @@
+const TRACKS = [
+  { id: 'foundations', title: 'Analyst Foundations', desc: 'Think like an analyst: ask the right questions, understand your data and build a professional workflow.' },
+  { id: 'spreadsheets', title: 'Spreadsheets', desc: 'Clean, analyse and summarise data with formulas, lookups and pivot tables.' },
+  { id: 'sql', title: 'SQL for Data Analysis', desc: 'Ask databases real questions, from your first SELECT to joins, CTEs and window functions.' },
+  { id: 'python', title: 'Python for Data Analysis', desc: 'Pandas, NumPy and visualisation for cleaning, transforming and exploring data at scale.' },
+  { id: 'statistics', title: 'Statistics and Probability', desc: 'Probability, hypothesis testing, regression and A/B testing, explained in plain language.' },
+  { id: 'visualization', title: 'Visualisation and Storytelling', desc: 'Turn numbers into dashboards and stories that decision makers act on.' },
+  { id: 'advanced', title: 'Advanced Analytics', desc: 'Churn, revenue analysis and forecasting: the deep-dive work of senior analysts.' },
+  { id: 'professional', title: 'The Professional Analyst', desc: 'Portfolio, interviews, stakeholder communication and presenting to executives.' }
+];
 const LESSONS = [
 {
   id: 'sql-1',
