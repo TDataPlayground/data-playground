@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Data Playground Lessons</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0b1d3a; color: #fff; font-family: Arial, sans-serif; line-height: 1.55; }
+    header { padding: 16px 20px; border-bottom: 1px solid #1f3a66; font-family: 'Orbitron', sans-serif; color: #4fc3f7; font-size: 1.2rem; }
+    header span { color: #f5b301; }
+    header a { color: #cfd8e3; font-family: Arial, sans-serif; font-size: 0.85rem; margin-left: 14px; text-decoration: none; }
+    main { max-width: 900px; margin: 0 auto; padding: 20px; }
+    select { background: #112b52; color: #fff; border: 1px solid #2a4c80; border-radius: 6px; padding: 8px; margin-bottom: 16px; max-width: 100%; }
+    #lessonHead { background: #112b52; border-radius: 10px; padding: 18px; margin-bottom: 20px; }
+    #lessonTitle { margin: 0 0 10px; font-size: 1.35rem; color: #f5b301; }
+    #lessonIntro { margin: 0 0 14px; color: #cfd8e3; }
+    .progressWrap { background: #0b1d3a; border-radius: 6px; height: 10px; overflow: hidden; }
+    #progressBar { background: #f5b301; height: 100%; width: 0%; transition: width 0.4s; }
+    #progressText { margin-top: 6px; font-size: 0.85rem; color: #4fc3f7; }
+    #status { margin: 10px 0 16px; color: #4fc3f7; font-size: 0.95rem; }
+    #status.error { color: #ff7b7b; }
+    #status:empty { display: none; }
+    .step { background: #112b52; border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; border-left: 4px solid #2a4c80; }
+    .step.explain { border-left-color: #f5b301; }
+    .step.try { border-left-color: #4fc3f7; }
+    .step.exercise { border-left-color: #81c784; }
+    .step.solved { background: #12345a; }
+    .tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: #7f93b0; margin-bottom: 4px; }
+    .step.solved .tag { color: #81c784; }
+    h3 { margin: 0 0 8px; font-size: 1.05rem; color: #fff; }
+    .body { color: #cfd8e3; font-size: 0.97rem; }
+    .body p { margin: 0 0 10px; }
+    .body ul { margin: 0 0 10px; padding-left: 22px; }
+    code { background: #0b1d3a; color: #ffd54f; padding: 1px 6px; border-radius: 4px; font-family: Consolas, monospace; font-size: 0.9em; }
+    details { background: #0b1d3a; border-radius: 6px; padding: 8px 12px; margin: 10px 0; }
+    summary { cursor: pointer; color: #4fc3f7; }
+    textarea { width: 100%; background: #0b1d3a; color: #e6f1ff; border: 1px solid #2a4c80; border-radius: 6px; padding: 10px; font-family: Consolas, monospace; font-size: 0.93rem; margin: 8px 0; resize: vertical; }
+    button { background: #f5b301; color: #0b1d3a; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; margin: 0 8px 8px 0; }
+    button.alt { background: #1f3a66; color: #cfd8e3; }
+    .feedback { margin: 4px 0 8px; font-size: 0.92rem; min-height: 1px; }
+    .feedback.err { color: #ff7b7b; }
+    .feedback.ok { color: #81c784; font-weight: bold; }
+    .hintBox { background: #0b1d3a; border-radius: 6px; padding: 8px 12px; color: #ffd54f; margin-bottom: 8px; font-size: 0.92rem; }
+    .solBox { background: #0b1d3a; border-radius: 6px; padding: 10px; color: #e6f1ff; font-family: Consolas, monospace; font-size: 0.88rem; white-space: pre-wrap; margin: 0 0 8px; }
+    .scroll { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+    th { background: #1f3a66; color: #4fc3f7; text-align: left; padding: 7px; white-space: nowrap; }
+    td { padding: 6px 7px; border-bottom: 1px solid #1f3a66; white-space: nowrap; }
+    .note { font-size: 0.82rem; color: #7f93b0; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <header>Data <span>Playground</span> &middot; Learn &middot; v1
+    <a href="index.html">Home</a><a href="workbench.html">SQL</a><a href="python.html">Python</a>
+  </header>
+  <main>
+    <select id="lessonSelect"></select>
+    <section id="lessonHead">
+      <h1 id="lessonTitle"></h1>
+      <p id="lessonIntro"></p>
+      <div class="progressWrap"><div id="progressBar"></div></div>
+      <div id="progressText"></div>
+    </section>
+    <div id="status">Starting...</div>
+    <div id="steps"></div>
+  </main>
+
+  <script src="lessons-data.js"></script>
+  <script>
+    const SCHEMAS = {
+      customers: { customer_id: 'INTEGER', customer_name: 'TEXT', email: 'TEXT', country: 'TEXT', region_id: 'INTEGER', signup_date: 'TEXT' },
+      regions: { region_id: 'INTEGER', region_name: 'TEXT', country: 'TEXT' },
+      employees: { employee_id: 'INTEGER', employee_name: 'TEXT', role: 'TEXT', region_id: 'INTEGER', hire_date: 'TEXT' },
+      products: { product_id: 'INTEGER', product_name: 'TEXT', category: 'TEXT', unit_price: 'REAL', stock_quantity: 'INTEGER' },
+      orders: { order_id: 'INTEGER', customer_id: 'INTEGER', employee_id: 'INTEGER', order_date: 'TEXT', order_status: 'TEXT' },
+      order_items: { order_item_id: 'INTEGER', order_id: 'INTEGER', product_id: 'INTEGER', quantity: 'INTEGER', unit_price: 'REAL' },
+      payments: { payment_id: 'INTEGER', order_id: 'INTEGER', payment_method: 'TEXT', amount: 'REAL', payment_status: 'TEXT', payment_date: 'TEXT' },
+      deliveries: { delivery_id: 'INTEGER', order_id: 'INTEGER', delivery_status: 'TEXT', dispatch_date: 'TEXT', delivery_date: 'TEXT' }
+    };
+
+    let db = null;
+    const loaded = {};
+    let currentLesson = null;
+    let progress = loadProgress();
+
+    function loadProgress() {
+      try { return JSON.parse(localStorage.getItem('dp_progress') || '{}'); } catch (e) { return {}; }
+    }
+    function saveProgress() {
+      try { localStorage.setItem('dp_progress', JSON.stringify(progress)); } catch (e) {}
+    }
+    function setStatus(msg, isError) {
+      const s = document.getElementById('status');
+      s.textContent = msg;
+      s.className = isError ? 'error' : '';
+    }
+    function escHtml(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function cell(v) { return v === null ? '<i>NULL</i>' : escHtml(v); }
+
+    function parseCSV(text) {
+      const rows = []; let row = [], cur = '', inQ = false;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (inQ) {
+          if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else inQ = false; }
+          else cur += c;
+        } else if (c === '"') inQ = true;
+        else if (c === ',') { row.push(cur); cur = ''; }
+        else if (c === '\n' || c === '\r') {
+          if (c === '\r' && text[i + 1] === '\n') i++;
+          row.push(cur); cur = ''; rows.push(row); row = [];
+        } else cur += c;
+      }
+      if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
+      return rows.filter(r => r.length > 1 || r[0] !== '');
+    }
+
+    async function loadTable(name) {
+      if (loaded[name]) return;
+      const res = await fetch('data/' + name + '.csv');
+      if (!res.ok) throw new Error('Could not load data/' + name + '.csv (status ' + res.status + ')');
+      const text = (await res.text()).replace(/^\uFEFF/, '');
+      const rows = parseCSV(text);
+      const cols = rows[0].map(h => h.trim());
+      const schema = SCHEMAS[name] || {};
+      db.run('CREATE TABLE "' + name + '" (' + cols.map(c => '"' + c + '" ' + (schema[c] || 'TEXT')).join(',') + ')');
+      const stmt = db.prepare('INSERT INTO "' + name + '" VALUES (' + cols.map(() => '?').join(',') + ')');
+      db.run('BEGIN');
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        stmt.run(cols.map((c, j) => {
+          const v = r[j];
+          if (v === undefined || v === '') return null;
+          const t = schema[c] || 'TEXT';
+          if (t === 'INTEGER') return parseInt(v, 10);
+          if (t === 'REAL') return Number(v);
+          return v;
+        }));
+      }
+      db.run('COMMIT');
+      stmt.free();
+      loaded[name] = true;
+    }
+
+    function execSQL(sql) {
+      const res = db.exec(sql);
+      return res.length ? res[res.length - 1] : null;
+    }
+
+    function guard(sql) {
+      const clean = sql.replace(/--.*$/gm, '');
+      if (/\b(drop|delete|update|insert|alter|create|replace|attach|pragma)\b/i.test(clean)) {
+        return 'This lesson sandbox is read-only. Please use SELECT queries only.';
+      }
+      if (clean.trim() === '') return 'Write a query first, then run it.';
+      return null;
+    }
+
+    function showResult(box, r) {
+      if (!r) { box.innerHTML = '<div class="note">0 rows returned.</div>'; return; }
+      const limit = 50;
+      let html = '<div class="scroll"><table><tr>' + r.columns.map(c => '<th>' + escHtml(c) + '</th>').join('') + '</tr>';
+      r.values.slice(0, limit).forEach(row => {
+        html += '<tr>' + row.map(v => '<td>' + cell(v) + '</td>').join('') + '</tr>';
+      });
+      html += '</table></div><div class="note">' + r.values.length + ' row' + (r.values.length === 1 ? '' : 's') +
+        ' returned' + (r.values.length > limit ? ' (showing the first ' + limit + ')' : '') + '.</div>';
+      box.innerHTML = html;
+    }
+
+    function runStep(el) {
+      const sql = el.querySelector('textarea').value;
+      const out = el.querySelector('.out');
+      const fb = el.querySelector('.feedback');
+      fb.textContent = ''; fb.className = 'feedback';
+      const bad = guard(sql);
+      if (bad) { out.innerHTML = ''; fb.textContent = bad; fb.className = 'feedback err'; return; }
+      try {
+        showResult(out, execSQL(sql));
+      } catch (e) {
+        out.innerHTML = '';
+        fb.textContent = 'SQL error: ' + e.message + '. Check spelling, commas, quotes and the order of your clauses.';
+        fb.className = 'feedback err';
+      }
+    }
+
+    function checkStep(el, s) {
+      const sql = el.querySelector('textarea').value;
+      const out = el.querySelector('.out');
+      const fb = el.querySelector('.feedback');
+      fb.className = 'feedback err';
+      const bad = guard(sql);
+      if (bad) { out.innerHTML = ''; fb.textContent = bad; return; }
+      let got;
+      try { got = execSQL(sql); }
+      catch (e) { out.innerHTML = ''; fb.textContent = 'SQL error: ' + e.message; return; }
+      showResult(out, got);
+      const exp = execSQL(s.solution);
+      if (!got) {
+        fb.textContent = 'Your query returned no rows. Check your WHERE condition: spelling, quotes and capital letters matter.';
+        return;
+      }
+      if (got.columns.length !== exp.columns.length) {
+        fb.textContent = 'Your query returns ' + got.columns.length + ' column(s) but the task needs ' + exp.columns.length + '. Re-read which columns are asked for, in order.';
+        return;
+      }
+      if (got.values.length !== exp.values.length) {
+        fb.textContent = 'Your query returned ' + got.values.length + ' rows but the expected answer has ' + exp.values.length + '. Check your WHERE and LIMIT.';
+        return;
+      }
+      let a = got.values.map(r => JSON.stringify(r));
+      let b = exp.values.map(r => JSON.stringify(r));
+      if (!s.ordered) { a.sort(); b.sort(); }
+      for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) {
+          fb.textContent = s.ordered
+            ? 'Right number of rows, but the rows or their order differ. Check your ORDER BY (and tie-breaker).'
+            : 'Right number of rows, but some values differ. Check your columns and conditions.';
+          return;
+        }
+      }
+      fb.className = 'feedback ok';
+      fb.textContent = 'Correct! Nicely done.';
+      markSolved(el, s);
+    }
+
+    function markSolved(el, s) {
+      progress[s.id] = true;
+      saveProgress();
+      el.classList.add('solved');
+      el.querySelector('.tag').textContent = 'Your turn \u00b7 Solved \u2713';
+      updateProgress();
+    }
+
+    function updateProgress() {
+      const ex = currentLesson.steps.filter(s => s.type === 'exercise');
+      const done = ex.filter(s => progress[s.id]).length;
+      document.getElementById('progressBar').style.width = (ex.length ? (done / ex.length) * 100 : 0) + '%';
+      document.getElementById('progressText').textContent = 'Exercises completed: ' + done + ' / ' + ex.length;
+    }
+
+    function renderLesson(lesson) {
+      currentLesson = lesson;
+      document.getElementById('lessonTitle').textContent = lesson.title;
+      document.getElementById('lessonIntro').innerHTML = lesson.intro;
+      const box = document.getElementById('steps');
+      box.innerHTML = '';
+      lesson.steps.forEach(s => {
+        const el = document.createElement('section');
+        el.className = 'step ' + s.type;
+        const label = { explain: 'Learn', try: 'Try it', exercise: 'Your turn' }[s.type] || '';
+        let h = '<div class="tag">' + label + '</div>';
+        if (s.title) h += '<h3>' + escHtml(s.title) + '</h3>';
+        h += '<div class="body">' + s.body + '</div>';
+        if (s.type === 'try' || s.type === 'exercise') {
+          h += '<textarea spellcheck="false"></textarea>';
+          h += '<div class="btns"><button class="run">Run (Ctrl+Enter)</button>';
+          if (s.type === 'exercise') {
+            h += '<button class="check">Check my answer</button><button class="hintBtn alt">Hint</button><button class="solBtn alt">Show solution</button>';
+          }
+          h += '</div><div class="feedback"></div>';
+          if (s.type === 'exercise') h += '<div class="hintBox" style="display:none"></div><pre class="solBox" style="display:none"></pre>';
+          h += '<div class="out"></div>';
+        }
+        el.innerHTML = h;
+        box.appendChild(el);
+
+        const ta = el.querySelector('textarea');
+        if (ta) {
+          ta.value = s.type === 'try' ? s.code : s.starter;
+          ta.rows = Math.max(3, ta.value.split('\n').length + 1);
+          ta.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') runStep(el); });
+          el.querySelector('.run').addEventListener('click', () => runStep(el));
+        }
+        if (s.type === 'exercise') {
+          el.querySelector('.check').addEventListener('click', () => checkStep(el, s));
+          const hb = el.querySelector('.hintBox');
+          hb.textContent = s.hint;
+          el.querySelector('.hintBtn').addEventListener('click', () => {
+            hb.style.display = hb.style.display === 'none' ? 'block' : 'none';
+          });
+          const sb = el.querySelector('.solBox');
+          sb.textContent = s.solution;
+          el.querySelector('.solBtn').addEventListener('click', () => {
+            sb.style.display = sb.style.display === 'none' ? 'block' : 'none';
+          });
+          if (progress[s.id]) {
+            el.classList.add('solved');
+            el.querySelector('.tag').textContent = 'Your turn \u00b7 Solved \u2713';
+          }
+        }
+      });
+      updateProgress();
+    }
+
+    async function openLesson(i) {
+      const lesson = LESSONS[i];
+      setStatus('Loading lesson data...');
+      try {
+        for (const t of lesson.tables) await loadTable(t);
+      } catch (e) {
+        setStatus(e.message + '. Check that the file exists in your data folder.', true);
+        return;
+      }
+      renderLesson(lesson);
+      setStatus('');
+    }
+
+    async function init() {
+      if (typeof LESSONS === 'undefined') {
+        setStatus('Could not find lessons-data.js. Check that the file exists in your repo.', true);
+        return;
+      }
+      try {
+        setStatus('Starting the SQL engine...');
+        const SQL = await initSqlJs({
+          locateFile: f => 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/' + f
+        });
+        db = new SQL.Database();
+        const sel = document.getElementById('lessonSelect');
+        LESSONS.forEach((l, i) => {
+          const o = document.createElement('option');
+          o.value = i; o.textContent = l.title;
+          sel.appendChild(o);
+        });
+        sel.addEventListener('change', () => openLesson(Number(sel.value)));
+        await openLesson(0);
+      } catch (e) {
+        setStatus('Something went wrong: ' + e.message, true);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
