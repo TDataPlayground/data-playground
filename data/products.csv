@@ -1,0 +1,151 @@
+product_id,product_name,category,unit_price,stock_quantity
+1,Wireless Earbuds,Electronics,52539.0,430
+2,Bluetooth Speaker,Electronics,4930.4,89
+3,Smartphone Charger,Electronics,28995.64,357
+4,LED Desk Lamp,Electronics,39584.54,68
+5,Power Bank 10000mAh,Electronics,84081.85,293
+6,HDMI Cable,Electronics,48408.63,100
+7,USB-C Hub,Electronics,23330.83,224
+8,Smart Watch,Electronics,58505.04,115
+9,Wireless Mouse,Electronics,19098.4,82
+10,Portable SSD 1TB,Electronics,38310.2,270
+11,Noise Cancelling Headphones,Electronics,69215.46,98
+12,Ring Light,Electronics,9596.51,12
+13,Webcam HD,Electronics,54402.04,342
+14,Bluetooth Keyboard,Electronics,10437.0,17
+15,Phone Tripod Stand,Electronics,69325.73,457
+16,Car Phone Mount,Electronics,2931.99,396
+17,Extension Socket,Electronics,36162.26,279
+18,Rechargeable Batteries Pack,Electronics,73820.52,174
+19,Mini Projector,Electronics,17787.61,373
+20,Smart Plug,Electronics,81513.85,372
+21,Wireless Earbuds (V2),Electronics,55484.17,254
+22,Bluetooth Speaker (V2),Electronics,18186.29,106
+23,Smartphone Charger (V2),Electronics,49555.53,242
+24,LED Desk Lamp (V2),Electronics,43820.15,182
+25,Power Bank 10000mAh (V2),Electronics,53524.51,286
+26,HDMI Cable (V2),Electronics,72907.28,410
+27,USB-C Hub (V2),Electronics,8040.26,218
+28,Smart Watch (V2),Electronics,54101.33,447
+29,Wireless Mouse (V2),Electronics,8346.58,40
+30,Portable SSD 1TB (V2),Electronics,12993.37,264
+31,Men's Casual Shirt,Fashion,11490.6,60
+32,Women's Ankara Dress,Fashion,18206.86,26
+33,Leather Belt,Fashion,21649.9,169
+34,Sneakers,Fashion,2255.17,420
+35,Denim Jacket,Fashion,33010.69,472
+36,Sunglasses,Fashion,29242.97,199
+37,Wristwatch,Fashion,25059.66,34
+38,Handbag,Fashion,30726.82,80
+39,Wallet,Fashion,33931.85,38
+40,Cotton T-Shirt,Fashion,19403.2,123
+41,Polo Shirt,Fashion,30082.04,477
+42,Sandals,Fashion,21976.79,159
+43,Baseball Cap,Fashion,14873.86,29
+44,Scarf,Fashion,19789.04,456
+45,Formal Trousers,Fashion,5214.29,241
+46,Blouse,Fashion,32887.05,134
+47,Jogger Pants,Fashion,23383.27,16
+48,Ankle Boots,Fashion,12824.52,133
+49,Waist Bag,Fashion,8217.13,454
+50,Hooded Sweatshirt,Fashion,27118.65,71
+51,Men's Casual Shirt (V2),Fashion,8341.82,418
+52,Women's Ankara Dress (V2),Fashion,26084.73,473
+53,Leather Belt (V2),Fashion,26871.05,467
+54,Sneakers (V2),Fashion,30922.05,120
+55,Denim Jacket (V2),Fashion,18034.1,412
+56,Sunglasses (V2),Fashion,33257.92,463
+57,Wristwatch (V2),Fashion,21935.06,427
+58,Handbag (V2),Fashion,27146.74,18
+59,Wallet (V2),Fashion,13085.83,36
+60,Cotton T-Shirt (V2),Fashion,33321.91,306
+61,Non-Stick Frying Pan,Home & Kitchen,44878.78,475
+62,Electric Kettle,Home & Kitchen,6674.42,282
+63,Blender,Home & Kitchen,29768.75,66
+64,Food Storage Set,Home & Kitchen,17689.49,21
+65,Cutlery Set,Home & Kitchen,8035.55,254
+66,Cooking Pot Set,Home & Kitchen,31441.05,332
+67,Toaster,Home & Kitchen,22314.95,244
+68,Dinner Plate Set,Home & Kitchen,19598.26,435
+69,Bed Sheet Set,Home & Kitchen,52834.09,116
+70,Throw Pillow,Home & Kitchen,3243.71,28
+71,Curtain Set,Home & Kitchen,3528.52,400
+72,Kitchen Knife Set,Home & Kitchen,49059.06,273
+73,Cutting Board,Home & Kitchen,37272.06,194
+74,Laundry Basket,Home & Kitchen,41552.59,377
+75,Wall Clock,Home & Kitchen,3049.5,246
+76,Table Lamp,Home & Kitchen,5024.14,392
+77,Storage Container Set,Home & Kitchen,23879.21,64
+78,Rice Cooker,Home & Kitchen,26923.68,218
+79,Hand Mixer,Home & Kitchen,33873.61,59
+80,Vacuum Flask,Home & Kitchen,27401.27,459
+81,Non-Stick Frying Pan (V2),Home & Kitchen,37707.89,462
+82,Electric Kettle (V2),Home & Kitchen,23327.1,99
+83,Blender (V2),Home & Kitchen,21901.29,470
+84,Food Storage Set (V2),Home & Kitchen,5359.51,118
+85,Cutlery Set (V2),Home & Kitchen,7335.47,5
+86,Cooking Pot Set (V2),Home & Kitchen,15173.3,382
+87,Toaster (V2),Home & Kitchen,45649.01,413
+88,Dinner Plate Set (V2),Home & Kitchen,48004.49,290
+89,Bed Sheet Set (V2),Home & Kitchen,4655.22,410
+90,Throw Pillow (V2),Home & Kitchen,2864.12,368
+91,Shea Butter Cream,Beauty & Health,6848.12,29
+92,Vitamin C Serum,Beauty & Health,2654.0,64
+93,Hair Growth Oil,Beauty & Health,11413.05,144
+94,Sunscreen SPF50,Beauty & Health,1858.01,179
+95,Facial Cleanser,Beauty & Health,15378.47,455
+96,Body Lotion,Beauty & Health,6710.71,149
+97,Lip Balm Set,Beauty & Health,3939.13,203
+98,Hand Sanitizer,Beauty & Health,12384.57,62
+99,Digital Thermometer,Beauty & Health,16689.48,39
+100,Blood Pressure Monitor,Beauty & Health,6854.81,278
+101,Multivitamin Tablets,Beauty & Health,5781.84,361
+102,Herbal Tea Pack,Beauty & Health,18592.29,182
+103,Toothpaste Pack,Beauty & Health,22522.89,439
+104,Deodorant,Beauty & Health,6130.95,365
+105,Hair Shampoo,Beauty & Health,8125.8,187
+106,Conditioner,Beauty & Health,19681.04,149
+107,Nail Care Kit,Beauty & Health,21829.1,125
+108,Massage Oil,Beauty & Health,13549.63,136
+109,First Aid Kit,Beauty & Health,8516.39,277
+110,Face Mask Pack,Beauty & Health,12983.38,27
+111,Shea Butter Cream (V2),Beauty & Health,9188.58,210
+112,Vitamin C Serum (V2),Beauty & Health,17873.14,318
+113,Hair Growth Oil (V2),Beauty & Health,12566.23,40
+114,Sunscreen SPF50 (V2),Beauty & Health,5726.03,70
+115,Facial Cleanser (V2),Beauty & Health,21162.49,266
+116,Body Lotion (V2),Beauty & Health,6378.97,379
+117,Lip Balm Set (V2),Beauty & Health,14181.77,62
+118,Hand Sanitizer (V2),Beauty & Health,9811.84,417
+119,Digital Thermometer (V2),Beauty & Health,19868.15,18
+120,Blood Pressure Monitor (V2),Beauty & Health,24465.41,357
+121,Notebook Pack,Books & Stationery,6772.08,391
+122,Ballpoint Pen Set,Books & Stationery,6970.32,58
+123,Novel - Fiction,Books & Stationery,612.96,428
+124,Business Planner,Books & Stationery,796.22,142
+125,Sticky Notes Pack,Books & Stationery,8947.13,153
+126,Highlighter Set,Books & Stationery,12459.53,43
+127,Textbook - Mathematics,Books & Stationery,1177.88,437
+128,Printer Paper Ream,Books & Stationery,9263.29,253
+129,Desk Organizer,Books & Stationery,577.07,195
+130,Whiteboard Marker Set,Books & Stationery,5954.55,22
+131,Envelope Pack,Books & Stationery,3599.39,194
+132,Sketchbook,Books & Stationery,3011.07,220
+133,Calculator,Books & Stationery,8127.63,338
+134,File Folder Set,Books & Stationery,4785.68,277
+135,Children's Storybook,Books & Stationery,11516.05,479
+136,Diary,Books & Stationery,682.08,311
+137,Calendar Planner,Books & Stationery,11390.83,172
+138,Correction Fluid,Books & Stationery,13863.67,464
+139,Paper Clips Box,Books & Stationery,4159.23,385
+140,Stapler,Books & Stationery,8987.09,387
+141,Notebook Pack (V2),Books & Stationery,701.97,371
+142,Ballpoint Pen Set (V2),Books & Stationery,12489.82,222
+143,Novel - Fiction (V2),Books & Stationery,13026.41,400
+144,Business Planner (V2),Books & Stationery,11019.62,376
+145,Sticky Notes Pack (V2),Books & Stationery,11360.29,413
+146,Highlighter Set (V2),Books & Stationery,1905.39,198
+147,Textbook - Mathematics (V2),Books & Stationery,14301.36,477
+148,Printer Paper Ream (V2),Books & Stationery,10266.15,439
+149,Desk Organizer (V2),Books & Stationery,14866.1,273
+150,Whiteboard Marker Set (V2),Books & Stationery,7113.49,293
