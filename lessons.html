@@ -53,7 +53,7 @@
   </style>
 </head>
 <body>
-  <header>Data <span>Playground</span> &middot; Learn &middot; v1
+  <header>Data <span>Playground</span> &middot; Learn &middot; v2
     <a href="learn.html">All lessons</a><a href="index.html">Home</a><a href="workbench.html">SQL</a><a href="python.html">Python</a>
   </header>
   <main>
@@ -320,7 +320,7 @@
       }
       renderLesson(lesson);
       setStatus('');
-      try {.setItem('dp_last', lesson.id); } catch(e) {} localStorage} catch (e) {}
+      try { localStorage.setItem('dp_last', lesson.id); } catch (e) {}
       resumeLesson();
     }
 
