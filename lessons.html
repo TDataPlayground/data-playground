@@ -298,6 +298,17 @@
       updateProgress();
     }
 
+    function resumeLesson() {
+      const cards = document.querySelectorAll('#steps .step');
+      let target = null;
+      for (let i = 0; i < currentLesson.steps.length; i++) {
+        const s = currentLesson.steps[i];
+        if (s.type === 'exercise' && !progress[s.id]) { target = cards[i]; break; }
+      }
+      const anyDone = currentLesson.steps.some(s => s.type === 'exercise' && progress[s.id]);
+      if (target && anyDone) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
     async function openLesson(i) {
       const lesson = LESSONS[i];
       setStatus('Loading lesson data...');
@@ -309,6 +320,8 @@
       }
       renderLesson(lesson);
       setStatus('');
+      try {.setItem('dp_last', lesson.id); } catch(e) {} localStorage} catch (e) {}
+      resumeLesson();
     }
 
     async function init() {
@@ -329,7 +342,14 @@
           sel.appendChild(o);
         });
         sel.addEventListener('change', () => openLesson(Number(sel.value)));
-        await openLesson(0);
+        let start = 0;
+        const wanted = new URLSearchParams(location.search).get('lesson');
+        if (wanted) {
+          const idx = LESSONS.findIndex(l => l.id === wanted);
+          if (idx >= 0) start = idx;
+        }
+        sel.value = String(start);
+        await openLesson(start);
       } catch (e) {
         setStatus('Something went wrong: ' + e.message, true);
       }
