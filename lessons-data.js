@@ -490,6 +490,303 @@ WHERE customer_id NOT IN (SELECT customer_id FROM orders);`
 </details>
 <p><b>Coming next, Lesson 1.3: Data types, NULLs and messy reality.</b> You have already met the 58 missing emails. Next you’ll learn why a database treats numbers, text and dates differently, what NULL really means, and how to spot trouble before it ruins an analysis.</p>`
     }
+   ]
+},
+{
+  id: 'sql-1-3',
+  track: 'sql',
+  title: '1.3 Data types, NULLs and messy reality',
+  tables: ['regions', 'customers', 'employees', 'products', 'orders', 'order_items', 'payments', 'deliveries'],
+  intro: `Your manager has a plan: <i>“Before we build the big sales dashboard, I want a quick health check on our data. Can we trust it?”</i><br><br>This is one of the most valuable things an analyst does, and most beginners skip it. By the end of this lesson you will understand what <b>kind</b> of thing each column holds, what it really means when a cell is <b>empty</b>, and how to run a 60-second health check on any table. This lesson also finishes Module 1.`,
+  steps: [
+    {
+      type: 'explain',
+      title: 'Every column is a labelled jar',
+      body: `<div class="callout analogy"><b>The big idea:</b> every column holds one <b>type</b> of thing, like jars in a kitchen: a sugar jar holds sugar, a salt jar holds salt. The database needs to know which is which, because it treats each type differently.</div>
+<p>Here are the four types you will meet constantly:</p>
+<ul>
+<li><b>INTEGER:</b> whole numbers, like 1, 42, 2000 (customer IDs, quantities)</li>
+<li><b>REAL:</b> numbers with decimals, like 52539.0 or 12384.57 (prices, amounts)</li>
+<li><b>TEXT:</b> words and codes, like 'Kenya' or 'Completed'. In TradeFlow, even dates are stored as text.</li>
+<li><b>NULL:</b> not a type of value but the <i>absence</i> of one: an empty jar. We’ll spend a good part of this lesson on it.</li>
+</ul>
+<p>You can ask SQL to tell you what kind of thing it’s looking at, using a little function called <code>typeof()</code>.</p>`
+    },
+    {
+      type: 'try',
+      title: 'Ask SQL what it sees',
+      body: `<p>No table needed here. We hand SQL four different things and ask what each one is: a whole number, a decimal, a word, and nothing at all.</p>
+<p>Result: <code>integer</code>, <code>real</code>, <code>text</code>, <code>null</code>.</p>
+<div class="callout work"><b>At work:</b> <code>typeof()</code> is specific to SQLite. Other databases have their own way to check (for example <code>pg_typeof()</code> in PostgreSQL, or looking up the column types in <code>information_schema</code>). The idea is the same everywhere.</div>`,
+      code: `SELECT typeof(1) AS a, typeof(2.5) AS b, typeof('hello') AS c, typeof(NULL) AS d;`
+    },
+    {
+      type: 'try',
+      title: 'Now look at real columns',
+      body: `<p>Same idea, but on real customer data. Look at row 3: the <code>email_type</code> says <code>null</code>. That customer has no email, so the jar is empty.</p>
+<p>Also notice <code>date_type</code> says <code>text</code>. TradeFlow’s dates are stored as plain text. Is that a problem? Let’s find out.</p>`,
+      code: `SELECT customer_id,
+       typeof(customer_id) AS id_type,
+       typeof(email) AS email_type,
+       typeof(signup_date) AS date_type
+FROM customers
+LIMIT 5;`
+    },
+    {
+      type: 'explain',
+      title: 'Why types matter: numbers vs text',
+      body: `<p>Here is the key difference. <b>Numbers</b> are compared by <i>size</i>. <b>Text</b> is compared <i>letter by letter, like a dictionary</i>.</p>
+<p>So as numbers, 9 is smaller than 10. But as text, <code>'9'</code> comes <i>after</i> <code>'10'</code>, because the computer looks at the first character: is <code>'9'</code> before <code>'1'</code>? No. So <code>'9'</code> is “bigger”.</p>
+<p>Run the next card and see it with your own eyes. In SQL, <code>1</code> means “true” and <code>0</code> means “false”.</p>`
+    },
+    {
+      type: 'try',
+      title: 'The famous 9 and 10 mix-up',
+      body: `<p>The first column asks “is 9 less than 10?” using numbers: <b>1 (true)</b>. The second asks the same thing but with text in quotes: <b>0 (false)</b>.</p>
+<p>This tiny difference is behind many real-life bugs, such as a “top 10” list that puts 9 above 10 because the numbers were accidentally stored as text.</p>`,
+      code: `SELECT 9 < 10 AS numbers_compare, '9' < '10' AS text_compare;`
+    },
+    {
+      id: 'sql-1-3-c1',
+      type: 'check',
+      title: 'When the values 9 and 10 are stored as TEXT, which one does SQL treat as the larger?',
+      body: `<p>Remember: text is compared character by character, like a dictionary.</p>`,
+      options: ['10, because it is bigger as a number', '9, because the character 9 comes after the character 1', 'They are always equal', 'SQL refuses to compare text'],
+      answer: 1,
+      why: [
+        'That is how <i>numbers</i> work. For text, SQL compares the first characters instead, and 1 comes before 9.',
+        'Yes! As text, SQL compares the first characters, and the character 9 comes after the character 1.',
+        'They are different values, so they are never equal.',
+        'SQL happily compares text. It just does it alphabetically, which surprises people.'
+      ]
+    },
+    {
+      type: 'try',
+      title: 'And what about dates stored as text?',
+      body: `<p>TradeFlow stores dates as text in the form <code>YYYY-MM-DD</code>, with the year first. That saves us, because comparing letter by letter matches the calendar. The first column checks that 28 Nov 2025 comes before 5 Jan 2026: <b>1 (true)</b>.</p>
+<p>The second column does the same with dates written <code>DD/MM/YYYY</code>, as people often write them. The answer is <b>0 (false)</b>, which is <b>wrong</b>, because the day comes first and the comparison looks at the day.</p>
+<div class="callout watch"><b>Watch out:</b> if you ever receive dates in any format other than <code>YYYY-MM-DD</code>, convert them before sorting or comparing. We will learn how in the dates lesson in Module 2.</div>`,
+      code: `SELECT '2025-11-28' < '2026-01-05' AS iso_dates_sort_correctly,
+       '28/11/2025' < '05/01/2026' AS slash_dates_sort_wrongly;`
+    },
+    {
+      type: 'explain',
+      title: 'NULL: the empty box',
+      body: `<div class="callout analogy"><b>The big idea:</b> <b>NULL</b> means “there is no value here”. It is an <i>empty box</i>. It is not the same as zero, and it is not the same as a blank piece of text.</div>
+<ul>
+<li>An empty box is <b>NULL</b></li>
+<li>A box with the number <b>0</b> written in it is a real value: zero</li>
+<li>A box with an invisible note (<code>''</code>, empty text) is also a real value: blank text</li>
+</ul>
+<p>Why does it matter? Because NULL spreads like a puddle. If you don’t know one number, then anything you calculate with it is also unknown. Watch.</p>`
+    },
+    {
+      type: 'try',
+      title: 'How NULL behaves',
+      body: `<p>Three results, and each teaches something:</p>
+<ul>
+<li><code>5 + NULL</code> gives <b>NULL</b>: five plus “I don’t know” is “I don’t know”.</li>
+<li><code>NULL = NULL</code> gives <b>NULL</b> too: is “unknown” equal to “unknown”? We can’t say.</li>
+<li><code>NULL IS NULL</code> gives <b>1 (true)</b>: <code>IS NULL</code> is the special phrase for asking “is this box empty?”</li>
+</ul>`,
+      code: `SELECT 5 + NULL AS five_plus_unknown,
+       NULL = NULL AS unknown_equals_unknown,
+       NULL IS NULL AS is_it_empty;`
+    },
+    {
+      type: 'try',
+      title: 'The silent bug (part 1): using =',
+      body: `<p>Let’s count customers with no email, the way a beginner would write it. Run it.</p>
+<p><b>The answer is 0, and there is no error message.</b> That’s the danger: it looks perfectly fine. A report built this way would tell your manager that nobody is missing an email. Wrong.</p>`,
+      code: `SELECT COUNT(*) AS using_equals FROM customers WHERE email = NULL;`
+    },
+    {
+      type: 'try',
+      title: 'The silent bug (part 2): the right way',
+      body: `<p>Now with <code>IS NULL</code>. The answer is <b>58</b>. Two queries that read almost the same, and one of them is quietly lying. <b>Always use <code>IS NULL</code> and <code>IS NOT NULL</code>. Never use <code>= NULL</code>.</b></p>`,
+      code: `SELECT COUNT(*) AS using_is_null FROM customers WHERE email IS NULL;`
+    },
+    {
+      type: 'explain',
+      title: 'NULL can mean different things',
+      body: `<p>Here is something most beginners never learn: <b>an empty cell doesn’t always mean the same thing.</b> It can mean:</p>
+<ul>
+<li><b>Unknown:</b> the information exists but we never collected it (a customer who never gave an email)</li>
+<li><b>Not applicable:</b> it makes no sense for this row</li>
+<li><b>Not happened yet:</b> the event hasn’t occurred</li>
+</ul>
+<p>Before you decide what to do with a NULL, you must ask <b>why</b> it’s empty. TradeFlow’s delivery table has a great example. Let’s investigate.</p>`
+    },
+    {
+      type: 'try',
+      title: 'Deliveries with no delivery date',
+      body: `<p>All of these rows have an empty <code>delivery_date</code>. Look at the <code>delivery_status</code> column. Do you notice a pattern?</p>`,
+      code: `SELECT * FROM deliveries WHERE delivery_date IS NULL LIMIT 8;`
+    },
+    {
+      type: 'try',
+      title: 'Which statuses have no delivery date?',
+      body: `<p><code>DISTINCT</code> means “show each different value only once”. The answer: only <b>In Transit</b> and <b>Failed</b>. Every delivered package has a date.</p>
+<p>So here the NULL is not a mistake and not “unknown”. It carries real meaning: <b>the package hasn’t arrived (or never will)</b>, so there is no date to record.</p>`,
+      code: `SELECT DISTINCT delivery_status FROM deliveries WHERE delivery_date IS NULL;`
+    },
+    {
+      id: 'sql-1-3-c2',
+      type: 'check',
+      title: 'A delivery has status “In Transit” and an empty delivery_date. What does the empty date most likely mean?',
+      body: `<p>Use what you just discovered.</p>`,
+      options: ['The data was deleted by mistake', 'The package has not arrived yet, so there is no date to record', 'The delivery date is zero', 'The row is a duplicate'],
+      answer: 1,
+      why: [
+        'Nothing suggests a mistake. The empty dates line up perfectly with statuses where no arrival has happened.',
+        'Exactly! The NULL is meaningful: no arrival yet, so no date. Good analysts ask “why is it empty?” before they decide what to do.',
+        'A date can never be zero, and NULL is not zero anyway. NULL means the box is empty.',
+        'Duplicates are a different problem. The pattern here is tied to the status.'
+      ]
+    },
+    {
+      type: 'explain',
+      title: 'Counting the empty boxes',
+      body: `<p>Remember from earlier: <code>COUNT(*)</code> counts <b>rows</b>, while <code>COUNT(column)</code> counts only the rows where that column is <b>not empty</b>. So the difference between them is the number of empty cells:</p>
+<div class="callout tip"><code>COUNT(*) - COUNT(column)</code> = how many NULLs are in that column.</div>
+<p>You can do arithmetic right inside the query. Let’s try it on the deliveries table.</p>`
+    },
+    {
+      type: 'try',
+      title: 'How many deliveries have no date?',
+      body: `<p>9,500 delivery rows, 8,261 with a date, so <b>1,239 are missing a date</b>. That matches the In Transit and Failed rows we saw.</p>`,
+      code: `SELECT COUNT(*) AS rows_in_table,
+       COUNT(delivery_date) AS dates_filled,
+       COUNT(*) - COUNT(delivery_date) AS dates_missing
+FROM deliveries;`
+    },
+    {
+      id: 'sql-1-3-ex1',
+      type: 'exercise',
+      title: 'Your turn: how many emails are missing?',
+      body: `<p>Using the <code>COUNT(*) - COUNT(column)</code> trick, return <b>one number</b>: how many customers are missing an email. Call it <code>missing_emails</code>.</p>`,
+      starter: `-- Write your query below\n\n`,
+      hints: [
+        'Copy the dates_missing part of the last query, and switch the table and the column.',
+        'SELECT COUNT(*) - COUNT(email) AS missing_emails FROM customers;'
+      ],
+      solution: `SELECT COUNT(*) - COUNT(email) AS missing_emails FROM customers;`,
+      ordered: true
+    },
+    {
+      type: 'explain',
+      title: 'So what do you do with NULLs?',
+      body: `<p>You have exactly three choices, and a good analyst makes the choice <b>on purpose</b>:</p>
+<ol>
+<li><b>Leave them alone</b> and remember that functions like <code>COUNT(column)</code> and <code>AVG</code> skip them</li>
+<li><b>Filter them out</b> with <code>WHERE column IS NOT NULL</code></li>
+<li><b>Replace them</b> with a stand-in value, using <code>COALESCE</code></li>
+</ol>
+<p><code>COALESCE(email, 'not provided')</code> means: “use the email, but if it’s empty, use this backup text instead.” Think of it as a spare tyre: the first real thing in the list wins.</p>
+<div class="callout watch"><b>Watch out:</b> replacing NULLs changes your data. Replacing a missing delivery date with “today” would make undelivered packages look delivered. Use COALESCE for <i>display</i> (reports, labels), and be very careful about using it before calculations. Whatever you choose, write the decision down.</div>`
+    },
+    {
+      type: 'try',
+      title: 'COALESCE in action',
+      body: `<p>Look at customer 3 (Andre Rivera). Instead of an empty cell, the report now says <b>not provided</b>. Every other customer keeps their real email.</p>`,
+      code: `SELECT customer_id,
+       customer_name,
+       COALESCE(email, 'not provided') AS email_for_report
+FROM customers
+LIMIT 10;`
+    },
+    {
+      id: 'sql-1-3-ex2',
+      type: 'exercise',
+      title: 'Your turn: tidy up for a report',
+      body: `<p>Show <code>customer_id</code> and <code>email</code> for the <b>first 10 customers</b>, but display <b>'not provided'</b> wherever the email is missing. Keep the column name <code>email</code>.</p>`,
+      starter: `-- Write your query below\n\n`,
+      hints: [
+        'Use COALESCE(email, ...) and give the result the name email with AS.',
+        'SELECT customer_id, COALESCE(email, \'not provided\') AS email FROM customers LIMIT 10;'
+      ],
+      solution: `SELECT customer_id, COALESCE(email, 'not provided') AS email FROM customers LIMIT 10;`,
+      ordered: true
+    },
+    {
+      type: 'explain',
+      title: 'The 60-second data health check',
+      body: `<p>Now you can do what the manager asked for. Before analysing <i>any</i> table, professional analysts run a quick health check. Here is the checklist:</p>
+<ol>
+<li><b>How many rows?</b> (<code>COUNT(*)</code>)</li>
+<li><b>Any empty cells?</b> (<code>COUNT(*) - COUNT(column)</code>)</li>
+<li><b>Do the smallest and biggest values make sense?</b> (<code>MIN</code> and <code>MAX</code>)</li>
+<li><b>Is the key unique?</b> (Lesson 1.2)</li>
+<li><b>Any orphans?</b> (Lesson 1.2)</li>
+</ol>
+<p><code>MIN</code> finds the smallest value and <code>MAX</code> the biggest. On dates written <code>YYYY-MM-DD</code>, they give you the earliest and the latest.</p>`
+    },
+    {
+      type: 'try',
+      title: 'Health check: the orders table',
+      body: `<p>10,000 orders, and every one has a date (none missing). The first order is on <b>2023-01-01</b> and the last on <b>2026-06-30</b>. That makes sense for a company with a few years of history. If MAX had said <code>2099-01-01</code>, you would know something was wrong.</p>`,
+      code: `SELECT COUNT(*) AS total_orders,
+       COUNT(order_date) AS dates_filled,
+       MIN(order_date) AS first_order,
+       MAX(order_date) AS last_order
+FROM orders;`
+    },
+    {
+      id: 'sql-1-3-ex3',
+      type: 'exercise',
+      title: 'Your turn: health check the payments table',
+      body: `<p>Return <b>three columns</b> for the <code>payments</code> table: the number of rows (<code>total_payments</code>), the smallest amount (<code>smallest</code>) and the largest amount (<code>largest</code>).</p>`,
+      starter: `-- Write your query below\n\n`,
+      hints: [
+        'You need COUNT(*), MIN(amount) and MAX(amount) in one SELECT, separated by commas.',
+        'SELECT COUNT(*) AS total_payments, MIN(amount) AS smallest, MAX(amount) AS largest FROM payments;'
+      ],
+      solution: `SELECT COUNT(*) AS total_payments, MIN(amount) AS smallest, MAX(amount) AS largest FROM payments;`,
+      ordered: true
+    },
+    {
+      id: 'sql-1-3-ex4',
+      type: 'exercise',
+      title: 'Challenge: where are the gaps?',
+      body: `<p>Marketing wants to run an email campaign in Nigeria. <b>How many customers from Nigeria have no email on file?</b> Return one number and call it <code>nigeria_no_email</code>.</p>`,
+      starter: `-- Write your query below\n\n`,
+      hints: [
+        'Count the rows where the country is Nigeria AND the email IS NULL.',
+        'SELECT COUNT(*) AS nigeria_no_email FROM customers WHERE country = \'Nigeria\' AND email IS NULL;'
+      ],
+      solution: `SELECT COUNT(*) AS nigeria_no_email FROM customers WHERE country = 'Nigeria' AND email IS NULL;`,
+      ordered: true
+    },
+    {
+      type: 'explain',
+      title: 'Watch out, and what it looks like at work',
+      body: `<div class="callout watch"><b>Watch out: three things that are NOT NULL, but look empty.</b> A zero, an empty text <code>''</code> and a placeholder like <code>'N/A'</code> or <code>'unknown'</code> are all real values. <code>IS NULL</code> will not find them. Real data is full of these disguises, so when you profile a column, also look at its <code>DISTINCT</code> values for suspicious placeholders. (TradeFlow’s only true empties are the 58 emails and the 1,239 delivery dates.)</div>
+<div class="callout work"><b>At work, in other databases:</b> <code>COALESCE</code> works almost everywhere. You may also meet <code>IFNULL</code> (MySQL and SQLite), <code>ISNULL</code> (SQL Server) and <code>NVL</code> (Oracle), which do nearly the same job with two arguments. Real databases also have proper <code>DATE</code> and <code>TIMESTAMP</code> types with built-in date maths, which is what the dates lesson will teach by showing the SQLite equivalent.</div>`
+    },
+    {
+      type: 'explain',
+      title: 'Module 1 complete: what you can do now',
+      body: `<p>Look how far you have come in three lessons:</p>
+<ul>
+<li>You understand what a database is, and how TradeFlow’s eight tables fit together</li>
+<li>You know how primary keys, foreign keys and orphans work, and how to test them</li>
+<li>You know what types of data live in columns, and why text and numbers behave differently</li>
+<li>You know what <code>NULL</code> really is, why <code>= NULL</code> is a silent bug, and how <code>IS NULL</code> and <code>COALESCE</code> fix it</li>
+<li>You can run a 60-second health check on any table</li>
+</ul>
+<p><b>Interview-style questions:</b></p>
+<ol>
+<li>What is the difference between NULL, zero and an empty string?</li>
+<li>Why does <code>WHERE column = NULL</code> return no rows, and what should you write instead?</li>
+<li>Before analysing a new table, what checks would you run first?</li>
+</ol>
+<details><summary>Show model answers</summary>
+<p><b>1.</b> NULL means no value (unknown, not applicable or not yet happened). Zero is a real number. An empty string is real text that happens to be empty. Only NULL means “nothing is stored here”.</p>
+<p><b>2.</b> Comparing anything to NULL gives NULL (unknown), never true, so no rows match and no error appears. The correct test is <code>IS NULL</code> (or <code>IS NOT NULL</code>).</p>
+<p><b>3.</b> Row count, NULL counts per column, MIN and MAX of numeric and date columns, key uniqueness, orphan checks on foreign keys, and a look at DISTINCT values for placeholders like “N/A”.</p>
+</details>
+<p><b>Coming next, Module 2: SQL Foundations.</b> Lesson 2.1 digs into <code>SELECT</code> properly: choosing columns, renaming them with aliases, and removing duplicates with <code>DISTINCT</code>. You have already been using these tools. Now you will master them.</p>`
+    }
   ]
 }
 ];
