@@ -34,7 +34,7 @@
   </style>
 </head>
 <body>
-  <header>Data <span>Playground</span> &middot; Workbench &middot; v2</header>
+  <header>Data <span>Playground</span> &middot; Workbench &middot; v3</header>
   <main>
     <section>
       <h2>1. Load your data</h2>
@@ -231,6 +231,7 @@
         } else {
           lastResult = null;
           chartBox.style.display = 'none';
+          setStatus(r.values.length + ' rows returned. To see a chart, make your second column a number (like COUNT or SUM).');
         }
       } catch (e) {
         out.innerHTML = '';
