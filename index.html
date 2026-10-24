@@ -72,13 +72,24 @@
       <p>Join fellow learners and analysts. Share projects, ask questions and find things to work on.</p>
       <span class="soon">Join on Telegram</span>
     </a>
-    <a class="card" href="learn.html" style="text-decoration:none;display:block;">
-      <h3>Learn</h3>
-      <p>Follow structured lessons from beginner to professional, with real tools and real data right beside you.</p>
-      <span class="soon">Start learning</span>
+    <a class="card" id="learnCard" style="text-decoration:none;display:block;">
+      <h3 id="learnTitle">Learn</h3>
+      <p id="learnText">Eight tracks, from your first SELECT to presenting to executives. Hit Start Learning above to begin.</p>
+      <span class="soon" id="learnBadge">8 tracks</span>
     </a>
   </div>
 
   <footer>Data Playground &middot; Free and open to learn on</footer>
+  <script>
+    try {
+      var last = localStorage.getItem('dp_last');
+      if (last) {
+        document.getElementById('learnCard').href = 'lessons.html?lesson=' + encodeURIComponent(last);
+        document.getElementById('learnTitle').textContent = 'Continue learning';
+        document.getElementById('learnText').textContent = 'Pick up right where you stopped.';
+        document.getElementById('learnBadge').textContent = 'Resume lesson';
+      }
+    } catch (e) {}
+  </script>
 </body>
 </html>
