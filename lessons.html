@@ -8,18 +8,23 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; background: #0b1d3a; color: #fff; font-family: Arial, sans-serif; line-height: 1.55; }
+    body { margin: 0; background: #0b1d3a; color: #fff; font-family: Arial, sans-serif; line-height: 1.6; }
     header { padding: 16px 20px; border-bottom: 1px solid #1f3a66; font-family: 'Orbitron', sans-serif; color: #4fc3f7; font-size: 1.2rem; }
     header span { color: #f5b301; }
     header a { color: #cfd8e3; font-family: Arial, sans-serif; font-size: 0.85rem; margin-left: 14px; text-decoration: none; }
     main { max-width: 900px; margin: 0 auto; padding: 20px; }
     select { background: #112b52; color: #fff; border: 1px solid #2a4c80; border-radius: 6px; padding: 8px; margin-bottom: 16px; max-width: 100%; }
-    #lessonHead { background: #112b52; border-radius: 10px; padding: 18px; margin-bottom: 20px; }
-    #lessonTitle { margin: 0 0 10px; font-size: 1.35rem; color: #f5b301; }
+    #lessonHead { background: #112b52; border-radius: 10px; padding: 18px; margin-bottom: 14px; }
+    #lessonTitle { margin: 0 0 10px; font-size: 1.4rem; color: #f5b301; }
     #lessonIntro { margin: 0 0 14px; color: #cfd8e3; }
     .progressWrap { background: #0b1d3a; border-radius: 6px; height: 10px; overflow: hidden; }
     #progressBar { background: #f5b301; height: 100%; width: 0%; transition: width 0.4s; }
     #progressText { margin-top: 6px; font-size: 0.85rem; color: #4fc3f7; }
+    #schemaPanel { background: #112b52; border-radius: 10px; padding: 10px 16px; margin-bottom: 20px; display: none; }
+    #schemaPanel summary { cursor: pointer; color: #4fc3f7; font-weight: bold; }
+    .tbl { background: #0b1d3a; border-radius: 6px; padding: 8px 12px; margin-top: 8px; font-size: 0.86rem; color: #cfd8e3; }
+    .tbl b { color: #f5b301; }
+    .ty { color: #7f93b0; font-size: 0.8em; }
     #status { margin: 10px 0 16px; color: #4fc3f7; font-size: 0.95rem; }
     #status.error { color: #ff7b7b; }
     #status:empty { display: none; }
@@ -27,33 +32,48 @@
     .step.explain { border-left-color: #f5b301; }
     .step.try { border-left-color: #4fc3f7; }
     .step.exercise { border-left-color: #81c784; }
+    .step.check { border-left-color: #ba68c8; }
     .step.solved { background: #12345a; }
     .tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: #7f93b0; margin-bottom: 4px; }
     .step.solved .tag { color: #81c784; }
-    h3 { margin: 0 0 8px; font-size: 1.05rem; color: #fff; }
-    .body { color: #cfd8e3; font-size: 0.97rem; }
-    .body p { margin: 0 0 10px; }
-    .body ul { margin: 0 0 10px; padding-left: 22px; }
+    h3 { margin: 0 0 8px; font-size: 1.08rem; color: #fff; }
+    .body { color: #cfd8e3; font-size: 0.98rem; }
+    .body p { margin: 0 0 12px; }
+    .body ul, .body ol { margin: 0 0 12px; padding-left: 22px; }
+    .body li { margin-bottom: 4px; }
     code { background: #0b1d3a; color: #ffd54f; padding: 1px 6px; border-radius: 4px; font-family: Consolas, monospace; font-size: 0.9em; }
+    .callout { border-radius: 8px; padding: 10px 14px; margin: 12px 0; font-size: 0.94rem; border-left: 4px solid #7f93b0; background: #0b1d3a; }
+    .callout.analogy { border-left-color: #f5b301; }
+    .callout.watch { border-left-color: #ff7b7b; }
+    .callout.work { border-left-color: #4fc3f7; }
+    .callout.tip { border-left-color: #81c784; }
+    .mini { width: auto; min-width: 50%; margin: 8px 0 12px; }
     details { background: #0b1d3a; border-radius: 6px; padding: 8px 12px; margin: 10px 0; }
     summary { cursor: pointer; color: #4fc3f7; }
     textarea { width: 100%; background: #0b1d3a; color: #e6f1ff; border: 1px solid #2a4c80; border-radius: 6px; padding: 10px; font-family: Consolas, monospace; font-size: 0.93rem; margin: 8px 0; resize: vertical; }
     button { background: #f5b301; color: #0b1d3a; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; margin: 0 8px 8px 0; }
     button.alt { background: #1f3a66; color: #cfd8e3; }
-    .feedback { margin: 4px 0 8px; font-size: 0.92rem; min-height: 1px; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .opts button { display: block; width: 100%; text-align: left; margin: 6px 0; }
+    .opts button.right { background: #81c784; color: #0b1d3a; }
+    .feedback { margin: 4px 0 8px; font-size: 0.93rem; min-height: 1px; }
     .feedback.err { color: #ff7b7b; }
     .feedback.ok { color: #81c784; font-weight: bold; }
     .hintBox { background: #0b1d3a; border-radius: 6px; padding: 8px 12px; color: #ffd54f; margin-bottom: 8px; font-size: 0.92rem; }
+    .hintBox div { margin-bottom: 4px; }
     .solBox { background: #0b1d3a; border-radius: 6px; padding: 10px; color: #e6f1ff; font-family: Consolas, monospace; font-size: 0.88rem; white-space: pre-wrap; margin: 0 0 8px; }
     .scroll { overflow-x: auto; }
     table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
     th { background: #1f3a66; color: #4fc3f7; text-align: left; padding: 7px; white-space: nowrap; }
     td { padding: 6px 7px; border-bottom: 1px solid #1f3a66; white-space: nowrap; }
     .note { font-size: 0.82rem; color: #7f93b0; margin-top: 6px; }
+    #lessonNav { display: flex; justify-content: space-between; gap: 12px; margin: 10px 0 50px; }
+    #lessonNav a { background: #112b52; border: 1px solid #2a4c80; color: #fff; text-decoration: none; padding: 12px 16px; border-radius: 8px; font-size: 0.92rem; max-width: 48%; }
+    #lessonNav a:hover { border-color: #f5b301; }
   </style>
 </head>
 <body>
-  <header>Data <span>Playground</span> &middot; Learn &middot; v2
+  <header>Data <span>Playground</span> &middot; Learn &middot; v3
     <a href="learn.html">All lessons</a><a href="index.html">Home</a><a href="workbench.html">SQL</a><a href="python.html">Python</a>
   </header>
   <main>
@@ -64,8 +84,13 @@
       <div class="progressWrap"><div id="progressBar"></div></div>
       <div id="progressText"></div>
     </section>
+    <details id="schemaPanel">
+      <summary>Tables in this lesson (tap to open)</summary>
+      <div id="schemaBody"></div>
+    </details>
     <div id="status">Starting...</div>
     <div id="steps"></div>
+    <div id="lessonNav"></div>
   </main>
 
   <script src="lessons-data.js"></script>
@@ -153,11 +178,15 @@
     }
 
     function guard(sql) {
-      const clean = sql.replace(/--.*$/gm, '');
-      if (/\b(drop|delete|update|insert|alter|create|replace|attach|pragma)\b/i.test(clean)) {
-        return 'This lesson sandbox is read-only. Please use SELECT queries only.';
-      }
+      const clean = sql.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
       if (clean.trim() === '') return 'Write a query first, then run it.';
+      if (currentLesson && currentLesson.writeMode) return null;
+      const parts = clean.split(';');
+      for (let i = 0; i < parts.length; i++) {
+        if (/^\s*(drop|delete|update|insert|alter|create|replace|attach|detach|pragma|vacuum|reindex)\b/i.test(parts[i])) {
+          return 'This lesson sandbox is read-only. Please use SELECT queries only.';
+        }
+      }
       return null;
     }
 
@@ -244,6 +273,31 @@
       document.getElementById('progressText').textContent = 'Exercises completed: ' + done + ' / ' + ex.length;
     }
 
+    function renderSchema(lesson) {
+      const panel = document.getElementById('schemaPanel');
+      const body = document.getElementById('schemaBody');
+      let html = '';
+      lesson.tables.forEach(t => {
+        const info = db.exec('PRAGMA table_info("' + t + '")');
+        if (!info.length) return;
+        const cols = info[0].values.map(c => escHtml(c[1]) + ' <span class="ty">' + escHtml(c[2]) + '</span>').join(', ');
+        const n = db.exec('SELECT COUNT(*) FROM "' + t + '"')[0].values[0][0];
+        html += '<div class="tbl"><b>' + escHtml(t) + '</b> (' + n.toLocaleString() + ' rows)<br>' + cols + '</div>';
+      });
+      body.innerHTML = html;
+      panel.style.display = html ? 'block' : 'none';
+    }
+
+    function renderNav(lesson) {
+      const i = LESSONS.indexOf(lesson);
+      let h = '';
+      if (i > 0) h += '<a href="lessons.html?lesson=' + encodeURIComponent(LESSONS[i - 1].id) + '">\u2190 ' + escHtml(LESSONS[i - 1].title) + '</a>';
+      else h += '<span></span>';
+      if (i < LESSONS.length - 1) h += '<a href="lessons.html?lesson=' + encodeURIComponent(LESSONS[i + 1].id) + '">' + escHtml(LESSONS[i + 1].title) + ' \u2192</a>';
+      else h += '<a href="learn.html">All lessons \u2192</a>';
+      document.getElementById('lessonNav').innerHTML = h;
+    }
+
     function renderLesson(lesson) {
       currentLesson = lesson;
       document.getElementById('lessonTitle').textContent = lesson.title;
@@ -253,19 +307,25 @@
       lesson.steps.forEach(s => {
         const el = document.createElement('section');
         el.className = 'step ' + s.type;
-        const label = { explain: 'Learn', try: 'Try it', exercise: 'Your turn' }[s.type] || '';
+        const label = { explain: 'Learn', try: 'Try it', exercise: 'Your turn', check: 'Quick check' }[s.type] || '';
         let h = '<div class="tag">' + label + '</div>';
         if (s.title) h += '<h3>' + escHtml(s.title) + '</h3>';
         h += '<div class="body">' + s.body + '</div>';
+        const hints = s.hints || (s.hint ? [s.hint] : []);
         if (s.type === 'try' || s.type === 'exercise') {
           h += '<textarea spellcheck="false"></textarea>';
           h += '<div class="btns"><button class="run">Run (Ctrl+Enter)</button>';
           if (s.type === 'exercise') {
-            h += '<button class="check">Check my answer</button><button class="hintBtn alt">Hint</button><button class="solBtn alt">Show solution</button>';
+            h += '<button class="check">Check my answer</button>';
+            if (hints.length) h += '<button class="hintBtn alt">Hint</button>';
+            h += '<button class="solBtn alt">Show solution</button>';
           }
           h += '</div><div class="feedback"></div>';
           if (s.type === 'exercise') h += '<div class="hintBox" style="display:none"></div><pre class="solBox" style="display:none"></pre>';
           h += '<div class="out"></div>';
+        }
+        if (s.type === 'check') {
+          h += '<div class="opts">' + s.options.map((o, i) => '<button class="opt alt" data-i="' + i + '">' + escHtml(o) + '</button>').join('') + '</div><div class="feedback"></div>';
         }
         el.innerHTML = h;
         box.appendChild(el);
@@ -280,10 +340,18 @@
         if (s.type === 'exercise') {
           el.querySelector('.check').addEventListener('click', () => checkStep(el, s));
           const hb = el.querySelector('.hintBox');
-          hb.textContent = s.hint;
-          el.querySelector('.hintBtn').addEventListener('click', () => {
-            hb.style.display = hb.style.display === 'none' ? 'block' : 'none';
-          });
+          const hbtn = el.querySelector('.hintBtn');
+          if (hbtn) {
+            let shown = 0;
+            hbtn.addEventListener('click', () => {
+              if (shown >= hints.length) return;
+              shown++;
+              hb.style.display = 'block';
+              hb.innerHTML = hints.slice(0, shown).map((t, i) => '<div><b>Hint ' + (i + 1) + ':</b> ' + escHtml(t) + '</div>').join('');
+              if (shown >= hints.length) { hbtn.textContent = 'No more hints'; hbtn.disabled = true; }
+              else hbtn.textContent = 'Another hint (' + shown + '/' + hints.length + ')';
+            });
+          }
           const sb = el.querySelector('.solBox');
           sb.textContent = s.solution;
           el.querySelector('.solBtn').addEventListener('click', () => {
@@ -293,6 +361,31 @@
             el.classList.add('solved');
             el.querySelector('.tag').textContent = 'Your turn \u00b7 Solved \u2713';
           }
+        }
+        if (s.type === 'check') {
+          const fb = el.querySelector('.feedback');
+          if (progress[s.id]) {
+            el.classList.add('solved');
+            el.querySelector('.tag').textContent = 'Quick check \u00b7 Got it \u2713';
+          }
+          el.querySelectorAll('.opt').forEach(b => {
+            b.addEventListener('click', () => {
+              const i = Number(b.dataset.i);
+              const why = s.why && s.why[i] ? s.why[i] : '';
+              if (i === s.answer) {
+                fb.className = 'feedback ok';
+                fb.innerHTML = 'Correct! ' + why;
+                b.classList.add('right');
+                progress[s.id] = true;
+                saveProgress();
+                el.classList.add('solved');
+                el.querySelector('.tag').textContent = 'Quick check \u00b7 Got it \u2713';
+              } else {
+                fb.className = 'feedback err';
+                fb.innerHTML = 'Not quite. ' + why;
+              }
+            });
+          });
         }
       });
       updateProgress();
@@ -311,14 +404,17 @@
 
     async function openLesson(i) {
       const lesson = LESSONS[i];
-      setStatus('Loading lesson data...');
+      setStatus('Loading lesson data. This can take a few seconds...');
       try {
         for (const t of lesson.tables) await loadTable(t);
       } catch (e) {
         setStatus(e.message + '. Check that the file exists in your data folder.', true);
         return;
       }
+      currentLesson = lesson;
       renderLesson(lesson);
+      renderSchema(lesson);
+      renderNav(lesson);
       setStatus('');
       try { localStorage.setItem('dp_last', lesson.id); } catch (e) {}
       resumeLesson();
@@ -341,7 +437,7 @@
           o.value = i; o.textContent = l.title;
           sel.appendChild(o);
         });
-        sel.addEventListener('change', () => openLesson(Number(sel.value)));
+        sel.addEventListener('change', () => { location.href = 'lessons.html?lesson=' + encodeURIComponent(LESSONS[Number(sel.value)].id); });
         let start = 0;
         const wanted = new URLSearchParams(location.search).get('lesson');
         if (wanted) {
