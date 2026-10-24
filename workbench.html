@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Data Playground Workbench</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0b1d3a; color: #fff; font-family: Arial, sans-serif; }
+    header { padding: 16px 20px; border-bottom: 1px solid #1f3a66; font-family: 'Orbitron', sans-serif; color: #4fc3f7; font-size: 1.2rem; }
+    header span { color: #f5b301; }
+    main { max-width: 1000px; margin: 0 auto; padding: 20px; }
+    section { background: #112b52; border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+    h2 { margin: 0 0 12px; font-size: 1.05rem; color: #f5b301; }
+    button { background: #f5b301; color: #0b1d3a; border: none; padding: 9px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-right: 10px; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    input[type=file] { color: #cfd8e3; margin-top: 10px; }
+    textarea { width: 100%; height: 130px; background: #0b1d3a; color: #e6f1ff; border: 1px solid #2a4c80; border-radius: 6px; padding: 10px; font-family: Consolas, monospace; font-size: 0.95rem; margin-bottom: 10px; }
+    #status { margin: 10px 0; color: #4fc3f7; font-size: 0.9rem; }
+    #status.error { color: #ff7b7b; }
+    #tables { margin-top: 12px; color: #cfd8e3; font-size: 0.9rem; line-height: 1.6; }
+    #tables b { color: #4fc3f7; }
+    .scroll { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th { background: #1f3a66; color: #4fc3f7; text-align: left; padding: 8px; }
+    td { padding: 7px 8px; border-bottom: 1px solid #1f3a66; }
+  </style>
+</head>
+<body>
+  <header>Data <span>Playground</span> &middot; Workbench</header>
+  <main>
+    <section>
+      <h2>1. Load your data</h2>
+      <button id="sampleBtn" disabled>Load sample data</button>
+      <div><input type="file" id="csvFile" accept=".csv" disabled></div>
+      <div id="tables">No data loaded yet.</div>
+    </section>
+
+    <section>
+      <h2>2. Write SQL</h2>
+      <textarea id="sql" spellcheck="false">SELECT * FROM sales LIMIT 10;</textarea>
+      <button id="runBtn" disabled>Run (Ctrl+Enter)</button>
+      <div id="status">Loading SQL engine...</div>
+      <div class="scroll" id="result"></div>
+    </section>
+  </main>
+
+  <script>
+    let db = null;
+    const statusEl = document.getElementById('status');
+
+    function setStatus(msg, isError) {
+      statusEl.textContent = msg;
+      statusEl.className = isError ? 'error' : '';
+    }
+
+    function esc(v) {
+      if (v === null) return '<i>NULL</i>';
+      return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    async function init() {
+      const SQL = await initSqlJs({
+        locateFile: f => 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/' + f
+      });
+      db = new SQL.Database();
+      document.getElementById('sampleBtn').disabled = false;
+      document.getElementById('csvFile').disabled = false;
+      document.getElementById('runBtn').disabled = false;
+      setStatus('Ready. Load some data, then run a query.');
+    }
+
+    function showTables() {
+      const res = db.exec("SELECT name FROM sqlite_master WHERE type='table'");
+      const box = document.getElementById('tables');
+      if (!res.length) { box.textContent = 'No data loaded yet.'; return; }
+      let html = '';
+      res[0].values.forEach(([name]) => {
+        const cols = db.exec('PRAGMA table_info("' + name + '")')[0].values.map(c => c[1]).join(', ');
+        const n = db.exec('SELECT COUNT(*) FROM "' + name + '"')[0].values[0][0];
+        html += '<div><b>' + esc(name) + '</b> (' + n + ' rows): ' + esc(cols) + '</div>';
+      });
+      box.innerHTML = html;
+    }
+
+    function loadSample() {
+      db.exec(`
+        DROP TABLE IF EXISTS sales;
+        CREATE TABLE sales (id INTEGER, country TEXT, category TEXT, amount REAL);
+        INSERT INTO sales VALUES
+          (1,'Nigeria','Electronics',120000),(2,'Ghana','Fashion',45000),
+          (3,'Kenya','Home & Kitchen',78000),(4,'Nigeria','Fashion',52000),
+          (5,'Rwanda','Electronics',99000),(6,'South Africa','Beauty & Health',61000),
+          (7,'Ghana','Electronics',87000),(8,'Kenya','Books & Stationery',23000),
+          (9,'Nigeria','Home & Kitchen',70000),(10,'South Africa','Electronics',134000);
+      `);
+      showTables();
+      setStatus('Sample data loaded. Try: SELECT country, SUM(amount) FROM sales GROUP BY country;');
+    }
+
+    function parseCSV(text) {
+      const rows = []; let row = [], cur = '', inQ = false;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (inQ) {
+          if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else inQ = false; }
+          else cur += c;
+        } else if (c === '"') inQ = true;
+        else if (c === ',') { row.push(cur); cur = ''; }
+        else if (c === '\n' || c === '\r') {
+          if (c === '\r' && text[i + 1] === '\n') i++;
+          row.push(cur); cur = ''; rows.push(row); row = [];
+        } else cur += c;
+      }
+      if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
+      return rows.filter(r => r.length > 1 || r[0] !== '');
+    }
+
+    function loadCSV(fileName, text) {
+      const rows = parseCSV(text);
+      const headers = rows[0].map(h => h.trim().replace(/[^A-Za-z0-9_]/g, '_'));
+      const data = rows.slice(1);
+      const types = headers.map((_, i) =>
+        data.every(r => r[i] === undefined || r[i] === '' || !isNaN(Number(r[i]))) ? 'REAL' : 'TEXT');
+      const table = fileName.replace(/\.csv$/i, '').replace(/[^A-Za-z0-9_]/g, '_');
+      db.run('DROP TABLE IF EXISTS "' + table + '"');
+      db.run('CREATE TABLE "' + table + '" (' + headers.map((h, i) => '"' + h + '" ' + types[i]).join(',') + ')');
+      const stmt = db.prepare('INSERT INTO "' + table + '" VALUES (' + headers.map(() => '?').join(',') + ')');
+      db.run('BEGIN');
+      data.forEach(r => {
+        stmt.run(headers.map((_, i) => {
+          const v = r[i];
+          if (v === undefined || v === '') return null;
+          return types[i] === 'REAL' ? Number(v) : v;
+        }));
+      });
+      db.run('COMMIT');
+      stmt.free();
+      return { table, count: data.length };
+    }
+
+    function runQuery() {
+      const sql = document.getElementById('sql').value;
+      const out = document.getElementById('result');
+      try {
+        const res = db.exec(sql);
+        if (!res.length) { out.innerHTML = ''; setStatus('Query ran successfully (no rows returned).'); showTables(); return; }
+        const r = res[res.length - 1];
+        const shown = r.values.slice(0, 500);
+        let html = '<table><tr>' + r.columns.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr>';
+        shown.forEach(row => { html += '<tr>' + row.map(v => '<td>' + esc(v) + '</td>').join('') + '</tr>'; });
+        out.innerHTML = html + '</table>';
+        setStatus(r.values.length + ' rows returned' + (r.values.length > 500 ? ' (showing first 500)' : '') + '.');
+      } catch (e) {
+        out.innerHTML = '';
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    document.getElementById('sampleBtn').addEventListener('click', loadSample);
+    document.getElementById('runBtn').addEventListener('click', runQuery);
+    document.getElementById('sql').addEventListener('keydown', e => {
+      if (e.ctrlKey && e.key === 'Enter') runQuery();
+    });
+    document.getElementById('csvFile').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const info = loadCSV(file.name, reader.result);
+          showTables();
+          setStatus('Loaded "' + info.table + '" with ' + info.count + ' rows. Write a query to explore it.');
+          document.getElementById('sql').value = 'SELECT * FROM "' + info.table + '" LIMIT 10;';
+        } catch (err) {
+          setStatus('Could not read that CSV: ' + err.message, true);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    init();
+  </script>
+</body>
+</html>
