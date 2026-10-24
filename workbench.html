@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Data Playground Workbench</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; }
@@ -16,6 +17,7 @@
     h2 { margin: 0 0 12px; font-size: 1.05rem; color: #f5b301; }
     button { background: #f5b301; color: #0b1d3a; border: none; padding: 9px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-right: 10px; }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
+    select { background: #0b1d3a; color: #fff; border: 1px solid #2a4c80; border-radius: 6px; padding: 8px; margin-right: 10px; }
     input[type=file] { color: #cfd8e3; margin-top: 10px; }
     textarea { width: 100%; height: 130px; background: #0b1d3a; color: #e6f1ff; border: 1px solid #2a4c80; border-radius: 6px; padding: 10px; font-family: Consolas, monospace; font-size: 0.95rem; margin-bottom: 10px; }
     #status { margin: 10px 0; color: #4fc3f7; font-size: 0.9rem; }
@@ -26,6 +28,9 @@
     table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
     th { background: #1f3a66; color: #4fc3f7; text-align: left; padding: 8px; }
     td { padding: 7px 8px; border-bottom: 1px solid #1f3a66; }
+    #chartBox { display: none; }
+    .chartWrap { max-width: 800px; margin-top: 14px; }
+    .hint { color: #cfd8e3; font-size: 0.85rem; margin-bottom: 10px; }
   </style>
 </head>
 <body>
@@ -45,11 +50,28 @@
       <div id="status">Loading SQL engine...</div>
       <div class="scroll" id="result"></div>
     </section>
+
+    <section id="chartBox">
+      <h2>3. Visualize</h2>
+      <div class="hint">The chart uses your first column as labels and your second column as values (first 30 rows).</div>
+      <select id="chartType">
+        <option value="bar">Bar chart</option>
+        <option value="line">Line chart</option>
+        <option value="pie">Pie chart</option>
+      </select>
+      <button id="downloadBtn">Download chart (PNG)</button>
+      <div class="chartWrap"><canvas id="chartCanvas"></canvas></div>
+    </section>
   </main>
 
   <script>
     let db = null;
+    let chart = null;
+    let lastResult = null;
     const statusEl = document.getElementById('status');
+
+    Chart.defaults.color = '#cfd8e3';
+    Chart.defaults.borderColor = '#1f3a66';
 
     function setStatus(msg, isError) {
       statusEl.textContent = msg;
@@ -97,7 +119,7 @@
           (9,'Nigeria','Home & Kitchen',70000),(10,'South Africa','Electronics',134000);
       `);
       showTables();
-      setStatus('Sample data loaded. Try: SELECT country, SUM(amount) FROM sales GROUP BY country;');
+      setStatus('Sample data loaded. Try: SELECT country, SUM(amount) AS total FROM sales GROUP BY country;');
     }
 
     function parseCSV(text) {
@@ -141,26 +163,91 @@
       return { table, count: data.length };
     }
 
+    function canChart(r) {
+      if (r.columns.length < 2 || r.values.length === 0) return false;
+      return r.values.every(row => row[1] === null || typeof row[1] === 'number');
+    }
+
+    function drawChart() {
+      if (!lastResult) return;
+      const type = document.getElementById('chartType').value;
+      const rows = lastResult.values.slice(0, 30);
+      const labels = rows.map(v => String(v[0]));
+      const values = rows.map(v => v[1]);
+      const palette = ['#4fc3f7', '#f5b301', '#81d4fa', '#ffd54f', '#29b6f6', '#ffca28', '#0288d1', '#ffb300'];
+      const colors = type === 'pie' ? labels.map((_, i) => palette[i % palette.length]) : '#4fc3f7';
+      const bg = {
+        id: 'bg',
+        beforeDraw(c) {
+          const x = c.ctx;
+          x.save();
+          x.globalCompositeOperation = 'destination-over';
+          x.fillStyle = '#112b52';
+          x.fillRect(0, 0, c.width, c.height);
+          x.restore();
+        }
+      };
+      if (chart) chart.destroy();
+      chart = new Chart(document.getElementById('chartCanvas'), {
+        type: type,
+        data: {
+          labels: labels,
+          datasets: [{
+            label: lastResult.columns[1],
+            data: values,
+            backgroundColor: colors,
+            borderColor: type === 'line' ? '#f5b301' : colors,
+            borderWidth: type === 'line' ? 2 : 0
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { display: type === 'pie' || type === 'line' || type === 'bar' } } },
+        plugins: [bg]
+      });
+    }
+
     function runQuery() {
       const sql = document.getElementById('sql').value;
       const out = document.getElementById('result');
+      const chartBox = document.getElementById('chartBox');
       try {
         const res = db.exec(sql);
-        if (!res.length) { out.innerHTML = ''; setStatus('Query ran successfully (no rows returned).'); showTables(); return; }
+        if (!res.length) {
+          out.innerHTML = '';
+          chartBox.style.display = 'none';
+          setStatus('Query ran successfully (no rows returned).');
+          showTables();
+          return;
+        }
         const r = res[res.length - 1];
         const shown = r.values.slice(0, 500);
         let html = '<table><tr>' + r.columns.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr>';
         shown.forEach(row => { html += '<tr>' + row.map(v => '<td>' + esc(v) + '</td>').join('') + '</tr>'; });
         out.innerHTML = html + '</table>';
         setStatus(r.values.length + ' rows returned' + (r.values.length > 500 ? ' (showing first 500)' : '') + '.');
+        if (canChart(r)) {
+          lastResult = r;
+          chartBox.style.display = 'block';
+          drawChart();
+        } else {
+          lastResult = null;
+          chartBox.style.display = 'none';
+        }
       } catch (e) {
         out.innerHTML = '';
+        chartBox.style.display = 'none';
         setStatus('Error: ' + e.message, true);
       }
     }
 
     document.getElementById('sampleBtn').addEventListener('click', loadSample);
     document.getElementById('runBtn').addEventListener('click', runQuery);
+    document.getElementById('chartType').addEventListener('change', drawChart);
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      const a = document.createElement('a');
+      a.href = document.getElementById('chartCanvas').toDataURL('image/png');
+      a.download = 'data-playground-chart.png';
+      a.click();
+    });
     document.getElementById('sql').addEventListener('keydown', e => {
       if (e.ctrlKey && e.key === 'Enter') runQuery();
     });
