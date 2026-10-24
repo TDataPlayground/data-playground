@@ -11,6 +11,7 @@ const TRACKS = [
 const LESSONS = [
 {
   id: 'sql-1',
+  track: 'sql',
   title: 'Lesson 1: Meet Your Data (SELECT, WHERE, ORDER BY)',
   tables: ['customers'],
   intro: `Welcome to <b>TradeFlow</b>, a fast-growing online marketplace across five African countries. You have just joined as a junior analyst, and your manager has a pile of questions about the company’s 2,000 customers. By the end of this lesson you will answer them yourself, using real SQL on real data, right here in your browser. Nothing to install.`,
