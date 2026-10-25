@@ -821,6 +821,19 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'm2-c',
+  file: 'lessons/m2c.js',
+  v: 1,
+  track: 'sql',
+  title: 'Module 2: SQL Foundations',
+  lessons: [
+    { id: 'sql-2-7', title: '2.7 CASE WHEN: teaching SQL to make decisions', ex: 5 },
+    { id: 'sql-2-8', title: '2.8 Working with dates: extracting, grouping and calculating', ex: 5 },
+    { id: 'sql-2-9', title: '2.9 Working with text: cleaning messy real-world data', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
