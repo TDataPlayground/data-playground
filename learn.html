@@ -14,23 +14,35 @@
     main { max-width: 900px; margin: 0 auto; padding: 20px; }
     h1 { font-family: 'Orbitron', sans-serif; color: #4fc3f7; font-size: 1.6rem; margin: 10px 0 6px; }
     .sub { color: #cfd8e3; margin: 0 0 8px; }
-    #overall { color: #f5b301; font-size: 0.9rem; margin-bottom: 18px; }
-    #resume a { display: block; background: #f5b301; color: #0b1d3a; font-weight: bold; text-decoration: none; padding: 14px 18px; border-radius: 10px; margin-bottom: 22px; }
+    #overall { color: #f5b301; font-size: 0.9rem; margin-bottom: 14px; }
+    #resume a { display: block; background: #f5b301; color: #0b1d3a; font-weight: bold; text-decoration: none; padding: 14px 18px; border-radius: 10px; margin-bottom: 18px; }
     #resume small { display: block; font-weight: normal; opacity: 0.85; }
-    .track { background: #112b52; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; border-left: 4px solid #2a4c80; }
-    .track.live { border-left-color: #f5b301; }
-    .thead { display: flex; gap: 14px; align-items: flex-start; }
+    .tools { margin-bottom: 14px; }
+    .tools button { background: #1f3a66; color: #cfd8e3; border: none; padding: 7px 12px; border-radius: 6px; cursor: pointer; margin-right: 8px; font-size: 0.85rem; }
+    details.track, div.track { background: #112b52; border-radius: 10px; margin-bottom: 14px; border-left: 4px solid #2a4c80; }
+    details.track.live, div.track.live { border-left-color: #f5b301; }
+    summary { list-style: none; cursor: pointer; }
+    summary::-webkit-details-marker { display: none; }
+    .thead { display: flex; gap: 14px; align-items: center; padding: 14px 16px; }
     .num { background: #0b1d3a; color: #f5b301; font-family: 'Orbitron', sans-serif; border-radius: 8px; min-width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; }
-    .thead h2 { margin: 0 0 4px; font-size: 1.1rem; color: #fff; }
-    .thead p { margin: 0; color: #cfd8e3; font-size: 0.92rem; }
-    .badge { margin-left: auto; font-size: 0.75rem; border: 1px solid #4fc3f7; color: #4fc3f7; border-radius: 12px; padding: 2px 10px; white-space: nowrap; }
+    .tinfo { flex: 1; min-width: 0; }
+    .tinfo h2 { margin: 0 0 3px; font-size: 1.08rem; color: #fff; }
+    .tinfo p { margin: 0; color: #cfd8e3; font-size: 0.9rem; }
+    .badge { font-size: 0.75rem; border: 1px solid #4fc3f7; color: #4fc3f7; border-radius: 12px; padding: 2px 10px; white-space: nowrap; }
     .badge.soon { border-color: #7f93b0; color: #7f93b0; }
-    .mod { margin: 18px 0 4px; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 1px; color: #f5b301; }
-    .mod.soonmod { color: #7f93b0; display: flex; justify-content: space-between; gap: 10px; text-transform: none; letter-spacing: 0; font-size: 0.92rem; background: #0b1d3a; border-radius: 8px; padding: 10px 14px; margin-top: 10px; }
-    .lesson { display: flex; justify-content: space-between; gap: 10px; align-items: center; background: #0b1d3a; border: 1px solid #1f3a66; border-radius: 8px; padding: 12px 14px; margin-top: 8px; color: #fff; text-decoration: none; }
+    .chev { color: #f5b301; transition: transform 0.2s; font-size: 1.1rem; }
+    details[open] > summary .chev { transform: rotate(90deg); }
+    .tbody { padding: 0 16px 14px; }
+    details.modsec { background: #0b1d3a; border-radius: 8px; margin-top: 10px; }
+    details.modsec > summary { display: flex; gap: 10px; align-items: center; padding: 10px 14px; color: #f5b301; font-size: 0.92rem; }
+    details.modsec > summary .mtitle { flex: 1; }
+    details.modsec > summary small { color: #7f93b0; white-space: nowrap; }
+    .mbody { padding: 0 10px 10px; }
+    .lesson { display: flex; justify-content: space-between; gap: 10px; align-items: center; background: #112b52; border: 1px solid #1f3a66; border-radius: 8px; padding: 11px 14px; margin-top: 8px; color: #fff; text-decoration: none; font-size: 0.93rem; }
     .lesson:hover { border-color: #f5b301; }
     .lesson small { color: #4fc3f7; white-space: nowrap; }
     .lesson.done small { color: #81c784; }
+    .soonmod { display: flex; justify-content: space-between; gap: 10px; color: #7f93b0; font-size: 0.9rem; background: #0b1d3a; border-radius: 8px; padding: 10px 14px; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -42,6 +54,7 @@
     <p class="sub">Follow the tracks in order from beginner to professional, or jump to the topic you need. Every lesson runs on real data, right in your browser.</p>
     <div id="overall"></div>
     <div id="resume"></div>
+    <div class="tools"><button id="expandAll">Expand all</button><button id="collapseAll">Collapse all</button></div>
     <div id="tracks"></div>
   </main>
 
@@ -51,53 +64,105 @@
       try { return JSON.parse(localStorage.getItem('dp_progress') || '{}'); } catch (e) { return {}; }
     }
     function esc(s) {
-      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
     const progress = loadProgress();
     let last = null;
     try { last = localStorage.getItem('dp_last'); } catch (e) {}
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('dp_open') || '{}'); } catch (e) {}
     const root = document.getElementById('tracks');
+
+    function lessonLabel(done, total) {
+      if (total > 0 && done === total) return 'Completed \u2713 \u00b7 Review \u2192';
+      if (done > 0) return 'Continue \u00b7 ' + done + ' / ' + total + ' \u2192';
+      return 'Start \u00b7 ' + total + ' exercises \u2192';
+    }
 
     if (typeof TRACKS === 'undefined' || typeof catalogMetas === 'undefined') {
       root.textContent = 'Could not read lessons-data.js. Check that the file exists in your repo.';
     } else {
       const metas = catalogMetas();
+      const lastMeta = last ? metas.find(m => m.id === last) : null;
+      const firstLive = TRACKS.find(t => metas.some(m => m.track === t.id));
       let totalDone = 0, totalAll = 0;
+
+      function isOpen(key, def) { return Object.prototype.hasOwnProperty.call(saved, key) ? !!saved[key] : def; }
+
       TRACKS.forEach((t, i) => {
         const ls = metas.filter(m => m.track === t.id);
         const planned = PLANNED.filter(p => p.track === t.id && !MODULES.some(m => m.id === p.id));
-        let html = '<div class="thead"><div class="num">' + (i + 1) + '</div><div><h2>' + esc(t.title) + '</h2><p>' + esc(t.desc) + '</p></div>';
-        html += ls.length
-          ? '<span class="badge">' + ls.length + ' lesson' + (ls.length === 1 ? '' : 's') + '</span>'
-          : '<span class="badge soon">Coming soon</span>';
-        html += '</div>';
-        let lastMod = null;
+        const num = '<div class="num">' + (i + 1) + '</div>';
+        const info = '<div class="tinfo"><h2>' + esc(t.title) + '</h2><p>' + esc(t.desc) + '</p></div>';
+
+        if (!ls.length) {
+          const el = document.createElement('div');
+          el.className = 'track';
+          el.innerHTML = '<div class="thead">' + num + info + '<span class="badge soon">Coming soon</span></div>';
+          root.appendChild(el);
+          return;
+        }
+
+        let tDone = 0, tAll = 0;
+        ls.forEach(l => { tAll += l.ex.length; tDone += l.ex.filter(id => progress[id]).length; });
+        totalDone += tDone; totalAll += tAll;
+
+        const trackKey = 't:' + t.id;
+        const trackDefault = lastMeta ? lastMeta.track === t.id : (firstLive && firstLive.id === t.id);
+        let body = '';
+        let lastMod = null, modLessons = [];
+        const modules = [];
         ls.forEach(l => {
-          if (l.module !== lastMod) { html += '<div class="mod">' + esc(l.module) + '</div>'; lastMod = l.module; }
-          const done = l.ex.filter(id => progress[id]).length;
-          totalDone += done; totalAll += l.ex.length;
-          const complete = l.ex.length > 0 && done === l.ex.length;
-          const label = complete
-            ? 'Completed \u2713 \u00b7 Review \u2192'
-            : (done > 0 ? 'Continue \u00b7 ' + done + ' / ' + l.ex.length + ' \u2192' : 'Start \u00b7 ' + l.ex.length + ' exercises \u2192');
-          html += '<a class="lesson' + (complete ? ' done' : '') + '" href="lessons.html?lesson=' + encodeURIComponent(l.id) + '">' +
-            '<span>' + esc(l.title) + '</span><small>' + label + '</small></a>';
+          if (l.module !== lastMod) { modLessons = []; modules.push({ name: l.module, lessons: modLessons }); lastMod = l.module; }
+          modLessons.push(l);
+        });
+        modules.forEach(m => {
+          let mDone = 0, mAll = 0, rows = '';
+          m.lessons.forEach(l => {
+            const done = l.ex.filter(id => progress[id]).length;
+            mDone += done; mAll += l.ex.length;
+            const complete = l.ex.length > 0 && done === l.ex.length;
+            rows += '<a class="lesson' + (complete ? ' done' : '') + '" href="lessons.html?lesson=' + encodeURIComponent(l.id) + '">' +
+              '<span>' + esc(l.title) + '</span><small>' + lessonLabel(done, l.ex.length) + '</small></a>';
+          });
+          const modKey = 'm:' + m.name;
+          const modDefault = lastMeta ? lastMeta.module === m.name : false;
+          body += '<details class="modsec" data-key="' + esc(modKey) + '"' + (isOpen(modKey, modDefault) ? ' open' : '') + '>' +
+            '<summary><span class="chev">\u25B8</span><span class="mtitle">' + esc(m.name) + '</span><small>' + m.lessons.length + ' lesson' + (m.lessons.length === 1 ? '' : 's') + ' \u00b7 ' + mDone + ' / ' + mAll + '</small></summary>' +
+            '<div class="mbody">' + rows + '</div></details>';
         });
         planned.forEach(p => {
-          html += '<div class="mod soonmod"><span>' + esc(p.title) + '</span><span>Coming soon</span></div>';
+          body += '<div class="soonmod"><span>' + esc(p.title) + '</span><span>Coming soon</span></div>';
         });
-        const el = document.createElement('section');
-        el.className = 'track' + (ls.length ? ' live' : '');
-        el.innerHTML = html;
+
+        const el = document.createElement('details');
+        el.className = 'track live';
+        el.setAttribute('data-key', trackKey);
+        if (isOpen(trackKey, !!trackDefault)) el.setAttribute('open', '');
+        el.innerHTML = '<summary class="thead"><span class="chev">\u25B8</span>' + num + info +
+          '<span class="badge">' + ls.length + ' lesson' + (ls.length === 1 ? '' : 's') + ' \u00b7 ' + tDone + ' / ' + tAll + '</span></summary>' +
+          '<div class="tbody">' + body + '</div>';
         root.appendChild(el);
       });
-      document.getElementById('overall').textContent = 'Your progress: ' + totalDone + ' / ' + totalAll + ' exercises completed';
 
-      const lastMeta = last ? metas.find(m => m.id === last) : null;
+      document.getElementById('overall').textContent = 'Your progress: ' + totalDone + ' / ' + totalAll + ' exercises completed';
       if (lastMeta) {
         document.getElementById('resume').innerHTML =
           '<a href="lessons.html?lesson=' + encodeURIComponent(lastMeta.id) + '">Continue where you stopped \u2192<small>' + esc(lastMeta.title) + '</small></a>';
       }
+
+      root.querySelectorAll('details[data-key]').forEach(d => {
+        d.addEventListener('toggle', () => {
+          saved[d.getAttribute('data-key')] = d.open;
+          try { localStorage.setItem('dp_open', JSON.stringify(saved)); } catch (e) {}
+        });
+      });
+      document.getElementById('expandAll').addEventListener('click', () => {
+        root.querySelectorAll('details').forEach(d => { d.open = true; });
+      });
+      document.getElementById('collapseAll').addEventListener('click', () => {
+        root.querySelectorAll('details').forEach(d => { d.open = false; });
+      });
     }
   </script>
 </body>
