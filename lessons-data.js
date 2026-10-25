@@ -793,7 +793,20 @@ FROM orders;`
 
 const BASE_LESSONS = LESSONS.slice();
 
-const MODULES = [];
+const MODULES = [
+  {
+    id: 'm2',
+    file: 'lessons/m2a.js',
+    v: 1,
+    track: 'sql',
+    title: 'Module 2: SQL Foundations',
+    lessons: [
+      { id: 'sql-2-1', title: '2.1 SELECT in depth: choosing, renaming and calculating', ex: 4 },
+      { id: 'sql-2-2', title: '2.2 Filtering with WHERE: comparisons, IN, BETWEEN and LIKE', ex: 5 },
+      { id: 'sql-2-3', title: '2.3 Sorting and top-N: ORDER BY, LIMIT and OFFSET', ex: 5 }
+    ]
+  }
+];
 
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
