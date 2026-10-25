@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Data Playground Lessons</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; }
@@ -67,13 +68,16 @@
     th { background: #1f3a66; color: #4fc3f7; text-align: left; padding: 7px; white-space: nowrap; }
     td { padding: 6px 7px; border-bottom: 1px solid #1f3a66; white-space: nowrap; }
     .note { font-size: 0.82rem; color: #7f93b0; margin-top: 6px; }
+    .chartArea { margin-top: 10px; }
+    .chartTools { margin-bottom: 8px; }
+    .chartWrap { max-width: 760px; }
     #lessonNav { display: flex; justify-content: space-between; gap: 12px; margin: 10px 0 50px; }
     #lessonNav a { background: #112b52; border: 1px solid #2a4c80; color: #fff; text-decoration: none; padding: 12px 16px; border-radius: 8px; font-size: 0.92rem; max-width: 48%; }
     #lessonNav a:hover { border-color: #f5b301; }
   </style>
 </head>
 <body>
-  <header>Data <span>Playground</span> &middot; Learn &middot; v3
+  <header>Data <span>Playground</span> &middot; Learn &middot; v4
     <a href="learn.html">All lessons</a><a href="index.html">Home</a><a href="workbench.html">SQL</a><a href="python.html">Python</a>
   </header>
   <main>
@@ -108,8 +112,14 @@
 
     let db = null;
     const loaded = {};
+    const moduleLoaded = {};
     let currentLesson = null;
     let progress = loadProgress();
+
+    if (typeof Chart !== 'undefined') {
+      Chart.defaults.color = '#cfd8e3';
+      Chart.defaults.borderColor = '#1f3a66';
+    }
 
     function loadProgress() {
       try { return JSON.parse(localStorage.getItem('dp_progress') || '{}'); } catch (e) { return {}; }
@@ -126,6 +136,28 @@
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
     function cell(v) { return v === null ? '<i>NULL</i>' : escHtml(v); }
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('Could not load ' + src));
+        document.head.appendChild(s);
+      });
+    }
+    function findLesson(id) { return LESSONS.find(l => l.id === id); }
+    async function ensureLesson(id) {
+      let l = findLesson(id);
+      if (l) return l;
+      const mod = MODULES.find(m => m.lessons.some(x => x.id === id));
+      if (!mod) return null;
+      if (!moduleLoaded[mod.id]) {
+        await loadScript(mod.file + '?v=' + (mod.v || 1));
+        moduleLoaded[mod.id] = true;
+      }
+      return findLesson(id);
+    }
 
     function parseCSV(text) {
       const rows = []; let row = [], cur = '', inQ = false;
@@ -202,17 +234,82 @@
       box.innerHTML = html;
     }
 
-    function runStep(el) {
+    function chartable(r) {
+      return !!r && r.columns.length >= 2 && r.values.length >= 2 && r.values.length <= 60 &&
+        r.values.every(row => typeof row[1] === 'number');
+    }
+    function clearChart(el) {
+      if (el._chart) { el._chart.destroy(); el._chart = null; }
+      const area = el.querySelector('.chartArea');
+      if (area) area.innerHTML = '';
+    }
+    function drawChart(el, area, r, type, title) {
+      if (typeof Chart === 'undefined') { area.textContent = 'The chart library could not load. Check your connection and refresh.'; return; }
+      area.innerHTML = '<div class="chartTools"><select class="ctype"><option value="bar">Bar chart</option><option value="line">Line chart</option><option value="pie">Pie chart</option></select> <button class="alt dl">Download PNG</button></div><div class="chartWrap"><canvas></canvas></div>';
+      const sel = area.querySelector('.ctype');
+      sel.value = type;
+      const canvas = area.querySelector('canvas');
+      const rows = r.values.slice(0, 30);
+      const labels = rows.map(v => String(v[0]));
+      const values = rows.map(v => v[1]);
+      const palette = ['#4fc3f7', '#f5b301', '#81d4fa', '#ffd54f', '#29b6f6', '#ffca28', '#0288d1', '#ffb300'];
+      const bg = {
+        id: 'bg',
+        beforeDraw(c) {
+          const x = c.ctx;
+          x.save();
+          x.globalCompositeOperation = 'destination-over';
+          x.fillStyle = '#112b52';
+          x.fillRect(0, 0, c.width, c.height);
+          x.restore();
+        }
+      };
+      function paint() {
+        if (el._chart) el._chart.destroy();
+        const t = sel.value;
+        const colors = t === 'pie' ? labels.map((_, i) => palette[i % palette.length]) : '#4fc3f7';
+        el._chart = new Chart(canvas, {
+          type: t,
+          data: { labels: labels, datasets: [{ label: r.columns[1], data: values, backgroundColor: colors, borderColor: t === 'line' ? '#f5b301' : colors, borderWidth: t === 'line' ? 2 : 0 }] },
+          options: { responsive: true, plugins: { legend: { display: true }, title: { display: !!title, text: title || '', color: '#ffffff' } } },
+          plugins: [bg]
+        });
+      }
+      sel.addEventListener('change', paint);
+      area.querySelector('.dl').addEventListener('click', () => {
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = 'data-playground-chart.png';
+        a.click();
+      });
+      paint();
+    }
+    function attachChart(el, s, r) {
+      clearChart(el);
+      const area = el.querySelector('.chartArea');
+      if (!area || !chartable(r)) return;
+      if (s.chart) { drawChart(el, area, r, s.chart, s.chartTitle); return; }
+      const btn = document.createElement('button');
+      btn.className = 'alt';
+      btn.textContent = 'Chart it';
+      btn.addEventListener('click', () => { area.innerHTML = ''; drawChart(el, area, r, 'bar', null); });
+      area.appendChild(btn);
+    }
+
+    function runStep(el, s) {
       const sql = el.querySelector('textarea').value;
       const out = el.querySelector('.out');
       const fb = el.querySelector('.feedback');
       fb.textContent = ''; fb.className = 'feedback';
       const bad = guard(sql);
-      if (bad) { out.innerHTML = ''; fb.textContent = bad; fb.className = 'feedback err'; return; }
+      if (bad) { out.innerHTML = ''; clearChart(el); fb.textContent = bad; fb.className = 'feedback err'; return; }
       try {
-        showResult(out, execSQL(sql));
+        const r = execSQL(sql);
+        showResult(out, r);
+        attachChart(el, s, r);
       } catch (e) {
         out.innerHTML = '';
+        clearChart(el);
         fb.textContent = 'SQL error: ' + e.message + '. Check spelling, commas, quotes and the order of your clauses.';
         fb.className = 'feedback err';
       }
@@ -224,11 +321,12 @@
       const fb = el.querySelector('.feedback');
       fb.className = 'feedback err';
       const bad = guard(sql);
-      if (bad) { out.innerHTML = ''; fb.textContent = bad; return; }
+      if (bad) { out.innerHTML = ''; clearChart(el); fb.textContent = bad; return; }
       let got;
       try { got = execSQL(sql); }
-      catch (e) { out.innerHTML = ''; fb.textContent = 'SQL error: ' + e.message; return; }
+      catch (e) { out.innerHTML = ''; clearChart(el); fb.textContent = 'SQL error: ' + e.message; return; }
       showResult(out, got);
+      attachChart(el, s, got);
       const exp = execSQL(s.solution);
       if (!got) {
         fb.textContent = 'Your query returned no rows. Check your WHERE condition: spelling, quotes and capital letters matter.';
@@ -289,11 +387,12 @@
     }
 
     function renderNav(lesson) {
-      const i = LESSONS.indexOf(lesson);
+      const metas = catalogMetas();
+      const i = metas.findIndex(m => m.id === lesson.id);
       let h = '';
-      if (i > 0) h += '<a href="lessons.html?lesson=' + encodeURIComponent(LESSONS[i - 1].id) + '">\u2190 ' + escHtml(LESSONS[i - 1].title) + '</a>';
+      if (i > 0) h += '<a href="lessons.html?lesson=' + encodeURIComponent(metas[i - 1].id) + '">\u2190 ' + escHtml(metas[i - 1].title) + '</a>';
       else h += '<span></span>';
-      if (i < LESSONS.length - 1) h += '<a href="lessons.html?lesson=' + encodeURIComponent(LESSONS[i + 1].id) + '">' + escHtml(LESSONS[i + 1].title) + ' \u2192</a>';
+      if (i >= 0 && i < metas.length - 1) h += '<a href="lessons.html?lesson=' + encodeURIComponent(metas[i + 1].id) + '">' + escHtml(metas[i + 1].title) + ' \u2192</a>';
       else h += '<a href="learn.html">All lessons \u2192</a>';
       document.getElementById('lessonNav').innerHTML = h;
     }
@@ -322,7 +421,7 @@
           }
           h += '</div><div class="feedback"></div>';
           if (s.type === 'exercise') h += '<div class="hintBox" style="display:none"></div><pre class="solBox" style="display:none"></pre>';
-          h += '<div class="out"></div>';
+          h += '<div class="out"></div><div class="chartArea"></div>';
         }
         if (s.type === 'check') {
           h += '<div class="opts">' + s.options.map((o, i) => '<button class="opt alt" data-i="' + i + '">' + escHtml(o) + '</button>').join('') + '</div><div class="feedback"></div>';
@@ -334,8 +433,8 @@
         if (ta) {
           ta.value = s.type === 'try' ? s.code : s.starter;
           ta.rows = Math.max(3, ta.value.split('\n').length + 1);
-          ta.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') runStep(el); });
-          el.querySelector('.run').addEventListener('click', () => runStep(el));
+          ta.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') runStep(el, s); });
+          el.querySelector('.run').addEventListener('click', () => runStep(el, s));
         }
         if (s.type === 'exercise') {
           el.querySelector('.check').addEventListener('click', () => checkStep(el, s));
@@ -402,8 +501,12 @@
       if (target && anyDone) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    async function openLesson(i) {
-      const lesson = LESSONS[i];
+    async function openLessonById(id) {
+      setStatus('Loading lesson...');
+      let lesson = null;
+      try { lesson = await ensureLesson(id); }
+      catch (e) { setStatus(e.message + '. Check that the lesson file exists in your repo.', true); return; }
+      if (!lesson) { setStatus('Lesson not found: ' + id, true); return; }
       setStatus('Loading lesson data. This can take a few seconds...');
       try {
         for (const t of lesson.tables) await loadTable(t);
@@ -421,8 +524,8 @@
     }
 
     async function init() {
-      if (typeof LESSONS === 'undefined') {
-        setStatus('Could not find lessons-data.js. Check that the file exists in your repo.', true);
+      if (typeof LESSONS === 'undefined' || typeof catalogMetas === 'undefined') {
+        setStatus('Could not read lessons-data.js. Check that the file exists and that the new block was pasted at its end.', true);
         return;
       }
       try {
@@ -431,21 +534,26 @@
           locateFile: f => 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/' + f
         });
         db = new SQL.Database();
+        const metas = catalogMetas();
         const sel = document.getElementById('lessonSelect');
-        LESSONS.forEach((l, i) => {
+        let group = null, groupName = null;
+        metas.forEach(m => {
+          if (m.module !== groupName) {
+            group = document.createElement('optgroup');
+            group.label = m.module;
+            sel.appendChild(group);
+            groupName = m.module;
+          }
           const o = document.createElement('option');
-          o.value = i; o.textContent = l.title;
-          sel.appendChild(o);
+          o.value = m.id; o.textContent = m.title;
+          group.appendChild(o);
         });
-        sel.addEventListener('change', () => { location.href = 'lessons.html?lesson=' + encodeURIComponent(LESSONS[Number(sel.value)].id); });
-        let start = 0;
+        let startId = metas[0].id;
         const wanted = new URLSearchParams(location.search).get('lesson');
-        if (wanted) {
-          const idx = LESSONS.findIndex(l => l.id === wanted);
-          if (idx >= 0) start = idx;
-        }
-        sel.value = String(start);
-        await openLesson(start);
+        if (wanted && metas.some(m => m.id === wanted)) startId = wanted;
+        sel.value = startId;
+        sel.addEventListener('change', () => { location.href = 'lessons.html?lesson=' + encodeURIComponent(sel.value); });
+        await openLessonById(startId);
       } catch (e) {
         setStatus('Something went wrong: ' + e.message, true);
       }
