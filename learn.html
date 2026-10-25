@@ -25,7 +25,9 @@
     .thead p { margin: 0; color: #cfd8e3; font-size: 0.92rem; }
     .badge { margin-left: auto; font-size: 0.75rem; border: 1px solid #4fc3f7; color: #4fc3f7; border-radius: 12px; padding: 2px 10px; white-space: nowrap; }
     .badge.soon { border-color: #7f93b0; color: #7f93b0; }
-    .lesson { display: flex; justify-content: space-between; gap: 10px; align-items: center; background: #0b1d3a; border: 1px solid #1f3a66; border-radius: 8px; padding: 12px 14px; margin-top: 12px; color: #fff; text-decoration: none; }
+    .mod { margin: 18px 0 4px; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 1px; color: #f5b301; }
+    .mod.soonmod { color: #7f93b0; display: flex; justify-content: space-between; gap: 10px; text-transform: none; letter-spacing: 0; font-size: 0.92rem; background: #0b1d3a; border-radius: 8px; padding: 10px 14px; margin-top: 10px; }
+    .lesson { display: flex; justify-content: space-between; gap: 10px; align-items: center; background: #0b1d3a; border: 1px solid #1f3a66; border-radius: 8px; padding: 12px 14px; margin-top: 8px; color: #fff; text-decoration: none; }
     .lesson:hover { border-color: #f5b301; }
     .lesson small { color: #4fc3f7; white-space: nowrap; }
     .lesson.done small { color: #81c784; }
@@ -56,39 +58,45 @@
     try { last = localStorage.getItem('dp_last'); } catch (e) {}
     const root = document.getElementById('tracks');
 
-    if (typeof TRACKS === 'undefined' || typeof LESSONS === 'undefined') {
-      root.textContent = 'Could not load lessons-data.js. Check that the file exists in your repo.';
+    if (typeof TRACKS === 'undefined' || typeof catalogMetas === 'undefined') {
+      root.textContent = 'Could not read lessons-data.js. Check that the file exists in your repo.';
     } else {
+      const metas = catalogMetas();
       let totalDone = 0, totalAll = 0;
       TRACKS.forEach((t, i) => {
-        const lessons = LESSONS.filter(l => l.track === t.id);
+        const ls = metas.filter(m => m.track === t.id);
+        const planned = PLANNED.filter(p => p.track === t.id && !MODULES.some(m => m.id === p.id));
         let html = '<div class="thead"><div class="num">' + (i + 1) + '</div><div><h2>' + esc(t.title) + '</h2><p>' + esc(t.desc) + '</p></div>';
-        html += lessons.length
-          ? '<span class="badge">' + lessons.length + ' lesson' + (lessons.length === 1 ? '' : 's') + '</span>'
+        html += ls.length
+          ? '<span class="badge">' + ls.length + ' lesson' + (ls.length === 1 ? '' : 's') + '</span>'
           : '<span class="badge soon">Coming soon</span>';
         html += '</div>';
-        lessons.forEach(l => {
-          const ex = l.steps.filter(s => s.type === 'exercise');
-          const done = ex.filter(s => progress[s.id]).length;
-          totalDone += done; totalAll += ex.length;
-          const complete = ex.length > 0 && done === ex.length;
+        let lastMod = null;
+        ls.forEach(l => {
+          if (l.module !== lastMod) { html += '<div class="mod">' + esc(l.module) + '</div>'; lastMod = l.module; }
+          const done = l.ex.filter(id => progress[id]).length;
+          totalDone += done; totalAll += l.ex.length;
+          const complete = l.ex.length > 0 && done === l.ex.length;
           const label = complete
             ? 'Completed \u2713 \u00b7 Review \u2192'
-            : (done > 0 ? 'Continue \u00b7 ' + done + ' / ' + ex.length + ' \u2192' : 'Start \u00b7 ' + ex.length + ' exercises \u2192');
+            : (done > 0 ? 'Continue \u00b7 ' + done + ' / ' + l.ex.length + ' \u2192' : 'Start \u00b7 ' + l.ex.length + ' exercises \u2192');
           html += '<a class="lesson' + (complete ? ' done' : '') + '" href="lessons.html?lesson=' + encodeURIComponent(l.id) + '">' +
             '<span>' + esc(l.title) + '</span><small>' + label + '</small></a>';
         });
+        planned.forEach(p => {
+          html += '<div class="mod soonmod"><span>' + esc(p.title) + '</span><span>Coming soon</span></div>';
+        });
         const el = document.createElement('section');
-        el.className = 'track' + (lessons.length ? ' live' : '');
+        el.className = 'track' + (ls.length ? ' live' : '');
         el.innerHTML = html;
         root.appendChild(el);
       });
       document.getElementById('overall').textContent = 'Your progress: ' + totalDone + ' / ' + totalAll + ' exercises completed';
 
-      const lastLesson = last ? LESSONS.find(l => l.id === last) : null;
-      if (lastLesson) {
+      const lastMeta = last ? metas.find(m => m.id === last) : null;
+      if (lastMeta) {
         document.getElementById('resume').innerHTML =
-          '<a href="lessons.html?lesson=' + encodeURIComponent(lastLesson.id) + '">Continue where you stopped \u2192<small>' + esc(lastLesson.title) + '</small></a>';
+          '<a href="lessons.html?lesson=' + encodeURIComponent(lastMeta.id) + '">Continue where you stopped \u2192<small>' + esc(lastMeta.title) + '</small></a>';
       }
     }
   </script>
