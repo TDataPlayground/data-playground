@@ -790,3 +790,34 @@ FROM orders;`
   ]
 }
 ];
+
+const BASE_LESSONS = LESSONS.slice();
+
+const MODULES = [];
+
+const PLANNED = [
+  { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
+  { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
+  { id: 'm4', track: 'sql', title: 'Module 4: Subqueries and Nested Logic' },
+  { id: 'm5', track: 'sql', title: 'Module 5: CTEs, Writing SQL You Can Actually Read' },
+  { id: 'm6', track: 'sql', title: 'Module 6: Window Functions, the Most Powerful SQL You’ll Ever Learn' },
+  { id: 'm7', track: 'sql', title: 'Module 7: Advanced SQL, Query Optimization, Indexes and Execution Plans' },
+  { id: 'm8', track: 'sql', title: 'Module 8: SQL in the Real World, End-to-End Business Queries' }
+];
+
+function catalogMetas() {
+  const out = [];
+  BASE_LESSONS.forEach(l => out.push({
+    id: l.id,
+    track: l.track,
+    title: l.title,
+    module: 'Module 1: Relational Databases, How Data Actually Lives',
+    ex: l.steps.filter(s => s.type === 'exercise').map(s => s.id)
+  }));
+  MODULES.forEach(m => m.lessons.forEach(l => {
+    const ids = [];
+    for (let i = 1; i <= l.ex; i++) ids.push(l.id + '-ex' + i);
+    out.push({ id: l.id, track: m.track, title: l.title, module: m.title, ex: ids });
+  }));
+  return out;
+}
