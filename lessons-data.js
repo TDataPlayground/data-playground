@@ -808,6 +808,19 @@ const MODULES = [
   }
 ];
 
+MODULES.push({
+  id: 'm2-b',
+  file: 'lessons/m2b.js',
+  v: 1,
+  track: 'sql',
+  title: 'Module 2: SQL Foundations',
+  lessons: [
+    { id: 'sql-2-4', title: '2.4 Numbers and calculations: maths, rounding and percentages', ex: 4 },
+    { id: 'sql-2-5', title: '2.5 Aggregates: COUNT, SUM, AVG, MIN and MAX', ex: 5 },
+    { id: 'sql-2-6', title: '2.6 GROUP BY and HAVING: answering “per” questions', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
