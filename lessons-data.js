@@ -834,6 +834,19 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'm3',
+  file: 'lessons/m3a.js',
+  v: 1,
+  track: 'sql',
+  title: 'Module 3: Joins, the Heart of Relational Analysis',
+  lessons: [
+    { id: 'sql-3-1', title: '3.1 Your first join: connecting two tables with INNER JOIN', ex: 5 },
+    { id: 'sql-3-2', title: '3.2 LEFT JOIN: finding what matches and what is missing', ex: 5 },
+    { id: 'sql-3-3', title: '3.3 Joining three or more tables: following the path', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
