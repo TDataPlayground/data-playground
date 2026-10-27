@@ -847,6 +847,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'm3-b',
+  file: 'lessons/m3b.js',
+  v: 1,
+  track: 'sql',
+  title: 'Module 3: Joins, the Heart of Relational Analysis',
+  lessons: [
+    { id: 'sql-3-4', title: '3.4 Join traps: duplicates, fan-out and wrong totals', ex: 5 },
+    { id: 'sql-3-5', title: '3.5 Self joins, cross joins and set operations', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
