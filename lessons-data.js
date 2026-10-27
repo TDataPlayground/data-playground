@@ -859,6 +859,19 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'm4',
+  file: 'lessons/m4.js',
+  v: 1,
+  track: 'sql',
+  title: 'Module 4: Subqueries and Nested Logic',
+  lessons: [
+    { id: 'sql-4-1', title: '4.1 A query inside a query: scalar subqueries and IN', ex: 5 },
+    { id: 'sql-4-2', title: '4.2 EXISTS and correlated subqueries', ex: 5 },
+    { id: 'sql-4-3', title: '4.3 Subqueries in FROM: building a table on the fly', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
