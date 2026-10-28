@@ -872,6 +872,19 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'm5',
+  file: 'lessons/m5.js',
+  v: 1,
+  track: 'sql',
+  title: 'Module 5: CTEs, Writing SQL You Can Actually Read',
+  lessons: [
+    { id: 'sql-5-1', title: '5.1 Your first CTE: naming each step with WITH', ex: 5 },
+    { id: 'sql-5-2', title: '5.2 Chaining CTEs: building a query step by step', ex: 5 },
+    { id: 'sql-5-3', title: '5.3 Recursive CTEs: queries that repeat themselves', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
