@@ -885,6 +885,19 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'm6',
+  file: 'lessons/m6a.js',
+  v: 1,
+  track: 'sql',
+  title: 'Module 6: Window Functions, the Most Powerful SQL You’ll Ever Learn',
+  lessons: [
+    { id: 'sql-6-1', title: '6.1 Window functions: calculating without collapsing rows', ex: 5 },
+    { id: 'sql-6-2', title: '6.2 Ranking: ROW_NUMBER, RANK, DENSE_RANK and top-N per group', ex: 5 },
+    { id: 'sql-6-3', title: '6.3 LAG and LEAD: comparing a row with its neighbours', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
