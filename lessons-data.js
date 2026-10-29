@@ -888,7 +888,7 @@ MODULES.push({
 MODULES.push({
   id: 'm6',
   file: 'lessons/m6a.js',
-  v: 1,
+  v: 2,
   track: 'sql',
   title: 'Module 6: Window Functions, the Most Powerful SQL You’ll Ever Learn',
   lessons: [
