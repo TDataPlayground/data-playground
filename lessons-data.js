@@ -898,6 +898,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'm6-b',
+  file: 'lessons/m6b.js',
+  v: 1,
+  track: 'sql',
+  title: 'Module 6: Window Functions, the Most Powerful SQL You’ll Ever Learn',
+  lessons: [
+    { id: 'sql-6-4', title: '6.4 Running totals and moving averages', ex: 5 },
+    { id: 'sql-6-5', title: '6.5 NTILE, percentiles, FIRST_VALUE and LAST_VALUE', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
