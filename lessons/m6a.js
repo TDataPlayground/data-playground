@@ -401,16 +401,19 @@ ORDER BY country;`
     },
     {
       type: 'try',
-      title: 'Kept and dropped',
-      body: `<p><b>24,853</b> lines would be kept, and <b>147</b> extra lines would be dropped. 24,853 + 147 = 25,000, the whole table. This is the standard way analysts de-duplicate in SQL, and the same 24,853 you would get from <code>drop_duplicates</code> on those two columns in pandas.</p>`,
+      title: 'Kept, dropped, and the money inside',
+      body: `<p>The technique works: <b>24,853</b> lines would be kept and <b>147</b> would be dropped (24,853 + 147 = 25,000). But read the last column before you delete anything: those 147 “extra” lines hold <b>8,989,289.32</b> of sales.</p>
+<div class="callout watch"><b>Tie out before you trust a clean-up.</b> The 147 lines belong to <b>146 orders</b>. If you drop them, <b>146 orders no longer match their payments</b>. If you keep all 25,000 lines, <b>all 10,000 orders match their payments exactly</b>. The payments were calculated <i>with</i> those lines, so they are <b>real purchases</b>: a customer added the same product on a second line. They share a key, but they are not duplicates. <b>The technique is right, but applying it here would be wrong.</b></div>
+<p>This is the lesson of Module 3 in one query: a repeated key is a question, not a verdict. <code>ROW_NUMBER</code> is how you <i>find</i> the repeats. The reconciliation tells you whether they are errors.</p>`,
       code: `WITH numbered AS (
-    SELECT order_item_id, order_id, product_id,
+    SELECT order_item_id, order_id, product_id, quantity, unit_price,
            ROW_NUMBER() OVER (PARTITION BY order_id, product_id
                               ORDER BY order_item_id) AS rn
     FROM order_items
 )
 SELECT SUM(CASE WHEN rn = 1 THEN 1 ELSE 0 END) AS kept_lines,
-       SUM(CASE WHEN rn > 1 THEN 1 ELSE 0 END) AS extra_lines
+       SUM(CASE WHEN rn > 1 THEN 1 ELSE 0 END) AS extra_lines,
+       ROUND(SUM(CASE WHEN rn > 1 THEN quantity * unit_price ELSE 0 END), 2) AS money_in_extra_lines
 FROM numbered;`
     },
     {
