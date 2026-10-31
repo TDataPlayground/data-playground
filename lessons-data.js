@@ -910,6 +910,20 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'm7',
+  file: 'lessons/m7.js',
+  v: 1,
+  track: 'sql',
+  title: 'Module 7: Advanced SQL, Query Optimization, Indexes and Execution Plans',
+  lessons: [
+    { id: 'sql-7-1', title: '7.1 How the database thinks: query plans and EXPLAIN', ex: 3 },
+    { id: 'sql-7-2', title: '7.2 Indexes: the shortcut that makes queries fly', ex: 4 },
+    { id: 'sql-7-3', title: '7.3 Writing fast queries: habits that scale', ex: 4 },
+    { id: 'sql-7-4', title: '7.4 Views, and changing data safely', ex: 4 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
