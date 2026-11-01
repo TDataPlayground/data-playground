@@ -924,6 +924,19 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'm8',
+  file: 'lessons/m8a.js',
+  v: 1,
+  track: 'sql',
+  title: 'Module 8: SQL in the Real World, End-to-End Business Queries',
+  lessons: [
+    { id: 'sql-8-1', title: '8.1 Business metrics: define it, calculate it, defend it', ex: 5 },
+    { id: 'sql-8-2', title: '8.2 Cohorts and retention: do customers come back?', ex: 5 },
+    { id: 'sql-8-3', title: '8.3 The funnel: where do orders get lost?', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
