@@ -4,28 +4,130 @@ LESSONS.push(
   track: 'sql',
   title: '8.4 RFM segmentation: who are your best customers?',
   tables: ['customers', 'orders', 'payments'],
-  intro: `The marketing manager walks over with a problem: <i>“We have a budget for one email campaign. Who should get it?”</i><br><br>If you answer “everyone”, you waste money on people who already buy every month <b>and</b> on people who left two years ago. A smarter analyst sorts customers into <b>groups that deserve different treatment</b>: reward the best, win back the ones drifting away, nurture the new ones. The classic method is called <b>RFM</b>, and you can build the whole thing in SQL. By the end you will have turned 1,982 customers into six named segments, and you will know how much money each one brings.`,
+  intro: `Picture a Monday morning at TradeFlow. The marketing manager stops by your desk with a coffee and a problem: <i>“I can afford to send one special email campaign this month. Who should get it?”</i><br><br>You have 1,982 customers who have ever bought something. The lazy answer is “everybody”. But think about what that really means. Some of those people ordered last week and would have bought anyway, so the email is wasted on them. Some haven’t ordered in two years and will never open it. And a small group used to be wonderful customers and are <b>quietly slipping away</b>. Those are the people you most want to catch, and “everybody” hides them in the crowd.<br><br>So today you learn how analysts sort a crowd of customers into a few <b>groups that each deserve a different message</b>. The method is called <b>RFM</b>. It sounds fancy, but it is only three simple questions, and you already know almost all the SQL you need. We will build it slowly, one small piece at a time, and read every query out loud together so nothing feels like magic.`,
   steps: [
     {
       type: 'explain',
-      title: 'Three questions about every customer',
-      body: `<div class="callout analogy"><b>The big idea:</b> think of the owner of a small coffee shop who knows the regulars. She does not need a spreadsheet to know who matters. She asks herself three things about each person: <b>When did they last come in? How often do they come? How much do they spend?</b> RFM is exactly those three questions, asked of every customer, in SQL.</div>
+      title: 'Two customers who look alike, but are not',
+      body: `<p>Let’s start with two real TradeFlow customers.</p>
+<p><b>Customer 5</b> has placed 6 orders and spent about 1.2 million. <b>Customer 2</b> has placed 5 orders and spent about 543 thousand. On “number of orders”, they look almost the same. Two regular customers, right?</p>
+<p>Not quite. Customer 5 last ordered <b>100 days ago</b>. Customer 2 last ordered <b>577 days ago</b>, which is nearly a year and a half. Customer 5 is still part of the family. Customer 2 has almost certainly drifted away.</p>
+<p>Your gut can feel that difference immediately. The trouble is that you can’t read 1,982 customers one by one with your gut. RFM is a way of teaching the computer to notice what your gut notices, for <b>every</b> customer at once.</p>`
+    },
+    {
+      type: 'explain',
+      title: 'The three questions behind RFM',
+      body: `<div class="callout analogy"><b>The big idea:</b> imagine the owner of a small coffee shop. She doesn’t keep a spreadsheet, yet she knows exactly who her best customers are. If you asked her how she knows, she would say something like: <i>“Well, she was in this morning. He comes every single day. And that lady always buys cakes for the whole office.”</i> Without realising it, she asked three questions about each person.</div>
+<p>RFM is just those three questions, written down with letters:</p>
 <table class="mini">
-<tr><th>Letter</th><th>Question</th><th>In TradeFlow</th></tr>
-<tr><td><b>R</b>ecency</td><td>How long since they last bought?</td><td>Days between their latest order and the end of the data</td></tr>
-<tr><td><b>F</b>requency</td><td>How often do they buy?</td><td>Number of orders</td></tr>
-<tr><td><b>M</b>onetary</td><td>How much do they spend?</td><td>Total payments on orders that stuck (Completed or Processing)</td></tr>
+<tr><th>Letter</th><th>The question</th><th>How we measure it in TradeFlow</th></tr>
+<tr><td><b>R</b> for Recency</td><td>How long ago did they last buy?</td><td>Days between their newest order and the end of our data</td></tr>
+<tr><td><b>F</b> for Frequency</td><td>How often do they buy?</td><td>How many orders they have placed</td></tr>
+<tr><td><b>M</b> for Monetary</td><td>How much money do they bring?</td><td>Total payments on orders that actually stuck</td></tr>
 </table>
-<p>Two decisions to make up front, because a careful analyst always writes them down:</p>
-<ul>
-<li><b>“Today” is fixed at 2026-06-30</b>, the last day in the data. We never use the real current date, otherwise the numbers would change every morning and nobody could reproduce your result.</li>
-<li><b>Monetary uses the same definition as the “net” revenue from Lesson 8.1</b>, so the customer totals add up to the company total. We will prove that at the end.</li>
-</ul>`
+<p>That is the whole idea. Everything else in this lesson is just doing those three measurements for every customer, turning them into simple scores, and giving the groups friendly names.</p>
+<div class="callout tip"><b>One decision to make before we start:</b> “how long ago” needs a “today”. Our data ends on <b>2026-06-30</b>, so we will treat that as today. Think of it as taking a <b>photograph of the business on that day</b>. We won’t use the real calendar date, because then every number would change a little each morning and a colleague who re-runs your query next week would get a different answer. A photograph never changes, and that is exactly what we want.</div>`
+    },
+    {
+      type: 'explain',
+      title: 'Recency, part 1: two small tools',
+      body: `<p>To measure “days since the last order” we need two small tools.</p>
+<p><b>Tool 1: finding the latest order.</b> A customer may have many orders. The function <code>MAX(order_date)</code> looks at all of them and hands back the newest date. (Dates in our data look like <code>2026-03-22</code>, with the year first, so the “biggest” date is always the newest one.)</p>
+<p><b>Tool 2: subtracting dates.</b> Here is a surprise: a computer sees <code>'2026-06-30'</code> as plain text, a little string of characters, so you can’t simply subtract one date from another. The fix is a function called <code>julianday()</code>. It turns any date into <b>one long running count of days</b>, like a giant calendar counter. Once two dates are numbers, subtracting them gives you the number of days between them. Let’s see it work.</p>`
     },
     {
       type: 'try',
-      title: 'Step 1: one row per customer with R, F and M',
-      body: `<p>We group <code>orders</code> by customer, join <code>payments</code> for the money, and calculate the three raw numbers. Look at customer 1: last order <b>165 days</b> ago, <b>3</b> orders, <b>420,553.01</b> of net spend. Customer 2 last ordered <b>577 days</b> ago. Already you can feel the difference between them.</p>`,
+      title: 'Turning dates into numbers',
+      body: `<p>Run it and read the result. The first two columns are the “day counters” for 30 June and 1 June 2026 (the long numbers are not important, only the gap between them is). The third column subtracts them and gives <b>29</b>, which is exactly how many days sit between 1 June and 30 June. You just did date arithmetic.</p>`,
+      code: `SELECT julianday('2026-06-30') AS day_counter_june_30,
+       julianday('2026-06-01') AS day_counter_june_1,
+       julianday('2026-06-30') - julianday('2026-06-01') AS days_between;`
+    },
+    {
+      type: 'try',
+      title: 'Customer 5: find the newest order by eye',
+      body: `<p>Before we let SQL do it for every customer, let’s do it once by eye. Here are all the orders of customer 5, newest first. The top row is their latest order: <b>22 March 2026</b>. That is the date <code>MAX(order_date)</code> will find for us.</p>`,
+      code: `SELECT order_id, order_date, order_status
+FROM orders
+WHERE customer_id = 5
+ORDER BY order_date DESC;`
+    },
+    {
+      type: 'try',
+      title: 'Now let SQL do it, for customers 2 and 5',
+      body: `<p>Read this query out loud, line by line:</p>
+<ol>
+<li><b>FROM orders WHERE customer_id IN (2, 5)</b>: “start with the orders of customers 2 and 5 only.”</li>
+<li><b>GROUP BY customer_id</b>: “sort those orders into one pile per customer.” (Think of two piles of paper receipts on a desk.)</li>
+<li><b>MAX(order_date)</b>: “in each pile, find the newest date.”</li>
+<li><b>julianday('2026-06-30') - julianday(MAX(order_date))</b>: “turn both dates into day counters and subtract.” This gives days with decimals, so <b>CAST(... AS INTEGER)</b> chops the decimals off and keeps whole days.</li>
+</ol>
+<p>The answer matches our gut feeling: customer 5 is <b>100 days</b> away from their last order, customer 2 is <b>577 days</b> away.</p>`,
+      code: `SELECT customer_id,
+       MAX(order_date) AS latest_order,
+       CAST(julianday('2026-06-30') - julianday(MAX(order_date)) AS INTEGER) AS recency_days
+FROM orders
+WHERE customer_id IN (2, 5)
+GROUP BY customer_id
+ORDER BY customer_id;`
+    },
+    {
+      id: 'sql-8-4-c1',
+      type: 'check',
+      title: 'Why do we type 2026-06-30 instead of asking the computer for today’s date?',
+      body: `<p>Think about a colleague re-running your query a month from now.</p>`,
+      options: ['Because SQLite has no way to get today’s date', 'So the result is reproducible, and it matches the last day our data actually covers', 'Because dates in TradeFlow are stored as numbers', 'It makes the query run faster'],
+      answer: 1,
+      why: [
+        'SQLite can do it with date(\'now\'). The real reason is different: our data stops on 2026-06-30, and a moving “today” would make every customer look a little more inactive each day.',
+        'Exactly! A fixed “photograph date” means the same query gives the same answer tomorrow, next month and on your colleague’s computer. It also stops customers looking “lost” just because the calendar moved on.',
+        'TradeFlow dates are text in YYYY-MM-DD form. That is why we needed julianday() in the first place.',
+        'Speed has nothing to do with it. Repeatable answers do.'
+      ]
+    },
+    {
+      id: 'sql-8-4-ex1',
+      type: 'exercise',
+      title: 'Your turn: recency for the first five customers',
+      body: `<p>Same recipe as above, but for <b>every</b> customer, keeping only the first five. Return <code>customer_id</code> and <code>recency_days</code>, ordered by <code>customer_id</code>, with <code>LIMIT 5</code>.</p>
+<p><b>Think before you type:</b> you need one pile per customer (GROUP BY), the newest date in each pile (MAX), and the day-gap to 2026-06-30 (julianday, then CAST). You don’t need the WHERE line this time, because you want all customers.</p>`,
+      starter: `-- Write your query below\n\n`,
+      hints: [
+        `Start with SELECT customer_id FROM orders GROUP BY customer_id. Then add a second column: the julianday of '2026-06-30' minus the julianday of MAX(order_date).`,
+        `Wrap the subtraction in CAST(... AS INTEGER) and call it recency_days. Finish with ORDER BY customer_id LIMIT 5.`,
+        `SELECT customer_id, CAST(julianday('2026-06-30') - julianday(MAX(order_date)) AS INTEGER) AS recency_days FROM orders GROUP BY customer_id ORDER BY customer_id LIMIT 5;`
+      ],
+      solution: `SELECT customer_id, CAST(julianday('2026-06-30') - julianday(MAX(order_date)) AS INTEGER) AS recency_days FROM orders GROUP BY customer_id ORDER BY customer_id LIMIT 5;`,
+      ordered: true
+    },
+    {
+      type: 'explain',
+      title: 'Frequency and Monetary: the easy two',
+      body: `<p><b>Frequency</b> is the simplest of all. After <code>GROUP BY customer_id</code> gives us one pile per customer, <code>COUNT(*)</code> just counts the receipts in each pile. Six receipts, frequency 6.</p>
+<p><b>Monetary</b> needs a little care, for two reasons.</p>
+<p>First, <b>the money isn’t in the orders table</b>. It lives in <code>payments</code>, so we <code>JOIN</code> the two tables on <code>order_id</code> (you did this in Module 3).</p>
+<p>Second, <b>not every payment is real money kept</b>. Remember from Lesson 8.1: some orders were Cancelled or Returned. If a customer cancels, we never really earned that money, so counting it would make them look better than they are. We only want to add up payments on orders whose status is <b>Completed</b> or <b>Processing</b>. This is exactly the “net revenue” definition we used in Lesson 8.1, so our numbers will agree with it.</p>
+<p>How do we add up “only some” payments? With a little gate inside the sum: <code>SUM(CASE WHEN order_status IN ('Completed','Processing') THEN amount ELSE 0 END)</code>. Read it as: <i>“for each payment, if the order stuck, add the amount; otherwise add zero.”</i> You met this “conditional sum” in Lesson 2.7. Let’s see it catch a real difference.</p>`
+    },
+    {
+      type: 'try',
+      title: 'Where the gate matters: customer 6',
+      body: `<p>Look at the last row. Customer 6 placed 3 orders and has <b>691,054.51</b> of payments in total, but only <b>579,680.58</b> of that came from orders that stuck. The other 111,373.93 belongs to a Cancelled or Returned order. That is the money the gate keeps out. For customers 2 and 5, every order stuck, so both columns match.</p>`,
+      code: `SELECT o.customer_id,
+       COUNT(*) AS orders_placed,
+       ROUND(SUM(p.amount), 2) AS all_payments,
+       ROUND(SUM(CASE WHEN o.order_status IN ('Completed', 'Processing') THEN p.amount ELSE 0 END), 2) AS money_that_stuck
+FROM orders o
+JOIN payments p ON p.order_id = o.order_id
+WHERE o.customer_id IN (2, 5, 6)
+GROUP BY o.customer_id
+ORDER BY o.customer_id;`
+    },
+    {
+      type: 'try',
+      title: 'R, F and M together, for the first ten customers',
+      body: `<p>Now we put the three measurements in one table. Notice we wrap the query in a <b>CTE</b> called <code>rfm</code>. A CTE is just a <b>named scratch pad</b>: “do this calculation first, call the result rfm, and let me use it below.” It keeps the query readable, and in a moment we will build more steps on top of it.</p>
+<p>Scan the ten rows. You can already feel the story: customer 5 (100 days, 6 orders, 1.2 million) looks healthy, customer 6 (741 days away) looks gone.</p>`,
       code: `WITH rfm AS (
     SELECT o.customer_id,
            CAST(julianday('2026-06-30') - julianday(MAX(o.order_date)) AS INTEGER) AS recency_days,
@@ -41,41 +143,14 @@ ORDER BY customer_id
 LIMIT 10;`
     },
     {
-      id: 'sql-8-4-c1',
-      type: 'check',
-      title: 'Why do we hard-code 2026-06-30 instead of using today’s date?',
-      body: `<p>Think about what happens when a colleague re-runs your query next month.</p>`,
-      options: ['Because SQLite has no way to get today’s date', 'So the result is reproducible, and it matches the last day our data actually covers', 'Because dates in TradeFlow are stored as numbers', 'It makes the query run faster'],
-      answer: 1,
-      why: [
-        'SQLite can do date(\'now\'). The reason is a different one: the data stops on 2026-06-30, and a moving “today” would make every customer look more inactive each day.',
-        'Yes! A fixed “as-of” date means the same query gives the same answer tomorrow, next month and in your colleague’s hands. It also stops customers looking artificially “lost” just because time passed.',
-        'TradeFlow dates are text in YYYY-MM-DD format, and julianday() turns them into numbers for us.',
-        'Speed is not the point. Reproducibility is.'
-      ]
-    },
-    {
-      id: 'sql-8-4-ex1',
-      type: 'exercise',
-      title: 'Your turn: recency for the first five customers',
-      body: `<p>Return <code>customer_id</code> and <code>recency_days</code> for customers 1 to 5: the whole days between <code>'2026-06-30'</code> and each customer’s <b>latest</b> <code>order_date</code>. Use <code>julianday()</code>, <code>MAX()</code> and <code>CAST(... AS INTEGER)</code>. Order by <code>customer_id</code> and keep only 5 rows.</p>`,
-      starter: `-- Write your query below\n\n`,
-      hints: [
-        `Group the orders table by customer_id, then take MAX(order_date) for the latest order. Subtract julianday of that date from julianday('2026-06-30').`,
-        `SELECT customer_id, CAST(julianday('2026-06-30') - julianday(MAX(order_date)) AS INTEGER) AS recency_days FROM orders GROUP BY customer_id ORDER BY customer_id LIMIT 5;`
-      ],
-      solution: `SELECT customer_id, CAST(julianday('2026-06-30') - julianday(MAX(order_date)) AS INTEGER) AS recency_days FROM orders GROUP BY customer_id ORDER BY customer_id LIMIT 5;`,
-      ordered: true
-    },
-    {
       type: 'explain',
-      title: 'Look before you score',
-      body: `<p>Never score blindly. First <b>look at the shape</b> of each measure. Recency is easiest to read in bands a manager can picture: bought in the last 3 months, last 6 months, last year, or longer ago.</p>`
+      title: 'Look at the crowd before you judge it',
+      body: `<p>A good analyst never jumps straight to scoring. First <b>look at the shape of the data</b>, the way you glance around a room before you start speaking. For recency, a manager finds bands easier to picture than raw days: “bought in the last 3 months”, “last 6 months”, “last year”, “longer ago than that”. We can make those bands with <code>CASE WHEN</code>.</p>`
     },
     {
       type: 'try',
-      title: 'How long since customers last bought?',
-      body: `<p>606 customers are active (last order within 90 days), but <b>466 customers, nearly a quarter, have not bought for over a year</b>. That single bar is already a business story.</p>`,
+      title: 'How long since our customers last bought?',
+      body: `<p>Read the bars as a story. <b>606</b> customers are active (bought within 90 days). <b>466</b> customers, nearly a quarter of everyone who ever bought, have <b>not ordered for more than a year</b>. That one picture already tells the manager that a big slice of the customer base is asleep. Press <b>Chart it</b> to see it.</p>`,
       chart: 'bar',
       chartTitle: 'Customers by recency band',
       code: `WITH r AS (
@@ -96,11 +171,13 @@ ORDER BY recency_band;`
     {
       id: 'sql-8-4-ex2',
       type: 'exercise',
-      title: 'Your turn: the inactive customers',
-      body: `<p>How many customers have <b>not ordered for more than 365 days</b>? Return one number called <code>inactive_customers</code>. Tip: build the recency per customer in a CTE or subquery first, then count the ones above 365.</p>`,
+      title: 'Your turn: how many customers are inactive?',
+      body: `<p>How many customers have <b>not ordered for more than 365 days</b>? Return one number called <code>inactive_customers</code>.</p>
+<p><b>Think before you type:</b> this is a two-step question. Step one: work out recency per customer (you already did this). Step two: count how many of those recency numbers are bigger than 365. A CTE is perfect: build the recency in the scratch pad, then count from it.</p>`,
       starter: `-- Write your query below\n\n`,
       hints: [
-        `Step 1: recency per customer (GROUP BY customer_id with MAX(order_date)). Step 2: COUNT(*) from that result WHERE recency_days > 365.`,
+        `Scratch pad first: WITH r AS (SELECT customer_id, ... AS recency_days FROM orders GROUP BY customer_id). Then below it, a plain SELECT that counts rows from r.`,
+        `The counting part is SELECT COUNT(*) AS inactive_customers FROM r WHERE recency_days > 365.`,
         `WITH r AS (SELECT customer_id, CAST(julianday('2026-06-30') - julianday(MAX(order_date)) AS INTEGER) AS recency_days FROM orders GROUP BY customer_id) SELECT COUNT(*) AS inactive_customers FROM r WHERE recency_days > 365;`
       ],
       solution: `WITH r AS (SELECT customer_id, CAST(julianday('2026-06-30') - julianday(MAX(order_date)) AS INTEGER) AS recency_days FROM orders GROUP BY customer_id) SELECT COUNT(*) AS inactive_customers FROM r WHERE recency_days > 365;`,
@@ -108,15 +185,72 @@ ORDER BY recency_band;`
     },
     {
       type: 'explain',
-      title: 'Turning raw numbers into scores with NTILE',
-      body: `<p>“165 days” and “420,553.01” cannot be compared directly. So we convert each measure into a <b>score from 1 to 4</b> using <code>NTILE(4)</code> (Lesson 6.5): it sorts the customers and cuts them into four equal groups.</p>
-<div class="callout watch"><b>The direction trap:</b> for Frequency and Monetary, <b>bigger is better</b>, so we sort ascending and the top group gets 4. But for Recency, <b>smaller is better</b> (fewer days since the last order). So we sort recency <b>descending</b> (<code>ORDER BY recency_days DESC</code>), which puts the most recent customers last, in group 4. In all three scores, <b>4 is good and 1 is bad</b>. Get this wrong and your “best customers” are your worst.</div>
-<p>We also add <code>customer_id</code> as a <b>tie-breaker</b> inside every <code>ORDER BY</code>, so two runs never give different answers.</p>`
+      title: 'From big messy numbers to simple scores',
+      body: `<p>We now have three numbers per customer, but they live on completely different scales: days, order counts and money in the hundreds of thousands. You can’t compare “165 days” with “420,553.01” directly. So RFM converts each measurement into a <b>simple score from 1 to 4</b>, where <b>4 always means “great” and 1 always means “weak”</b>.</p>
+<div class="callout analogy"><b>The big idea:</b> imagine you line up 8 friends by height, shortest on the left, tallest on the right, and then split the line into 4 groups of 2 people. The two shortest are group 1, the next two are group 2, and so on. Nobody needs to know anyone’s exact height anymore: “group 4” already tells you “among the tallest”. SQL has a function that does precisely this splitting, called <code>NTILE</code>.</div>
+<p><code>NTILE(4) OVER (ORDER BY something)</code> reads: “line everyone up by <i>something</i>, then cut the line into 4 equal groups and tell me each person’s group number.” (It is a window function, from Module 6.) Let’s watch it work on a tiny example before we trust it with 1,982 customers.</p>`
     },
     {
       type: 'try',
-      title: 'Step 2: scores and the RFM code',
-      body: `<p>Now each customer has three scores and a short code such as <b>322</b> (R=3, F=2, M=2). The code <code>r || f || m</code> glues the three digits together as text. Customer 9 is <b>344</b>: bought recently, orders often, and spends a lot. Customer 2 is <b>122</b>: gone for ages.</p>`,
+      title: 'NTILE on eight friends',
+      body: `<p>Eight friends, four groups. Ada and Ben are the shortest, so they get group 1. Gus and Hal are the tallest, so they get group 4. Exactly what we pictured. (The <code>VALUES</code> part just lets us write a tiny table by hand.)</p>`,
+      code: `WITH friends(person, height_cm) AS (
+    VALUES ('Ada', 150), ('Ben', 155), ('Chi', 160), ('Dee', 165),
+           ('Eli', 170), ('Fay', 175), ('Gus', 180), ('Hal', 185)
+)
+SELECT person,
+       height_cm,
+       NTILE(4) OVER (ORDER BY height_cm) AS group_number
+FROM friends
+ORDER BY height_cm;`
+    },
+    {
+      type: 'explain',
+      title: 'The direction trap: which end is “good”?',
+      body: `<p>With frequency and money, <b>bigger is better</b>: someone with more orders or more spending is a better customer. So we line them up from smallest to biggest, and the biggest end gets group 4. 👍</p>
+<p>But recency is the other way round! A customer who ordered <b>3 days ago</b> is better than one who ordered <b>700 days ago</b>, so here <b>a smaller number is better</b>. If we lined up recency from smallest to biggest, the freshest customers would land in group 1, which we have agreed means “weak”. Our scores would be upside down, and our “best” customers would actually be the ones who left!</p>
+<p>The fix is to line recency up in <b>reverse</b> with <code>ORDER BY recency_days DESC</code>: the longest-gone customers go first (group 1) and the most recent go last (group 4). Watch the same eight friends lined up in reverse:</p>`
+    },
+    {
+      type: 'try',
+      title: 'Reverse the line, and the groups flip',
+      body: `<p>Same friends, but now <code>ORDER BY height_cm DESC</code>. Ada, the shortest, is suddenly in group 4, and Hal, the tallest, is in group 1. The direction of the ORDER BY decides which end of the line becomes “4”. For recency we want the most recent customers at that end, which is why we use <code>DESC</code>.</p>`,
+      code: `WITH friends(person, height_cm) AS (
+    VALUES ('Ada', 150), ('Ben', 155), ('Chi', 160), ('Dee', 165),
+           ('Eli', 170), ('Fay', 175), ('Gus', 180), ('Hal', 185)
+)
+SELECT person,
+       height_cm,
+       NTILE(4) OVER (ORDER BY height_cm DESC) AS group_number
+FROM friends
+ORDER BY height_cm;`
+    },
+    {
+      id: 'sql-8-4-c3',
+      type: 'check',
+      title: 'Which line-up gives the most recent customers a recency score of 4?',
+      body: `<p>Remember: NTILE gives group 1 to whoever is <b>first</b> in the line and group 4 to whoever is <b>last</b>. Recency is measured in “days since last order”.</p>`,
+      options: ['NTILE(4) OVER (ORDER BY recency_days)', 'NTILE(4) OVER (ORDER BY recency_days DESC)', 'NTILE(4) OVER (ORDER BY customer_id)', 'It makes no difference'],
+      answer: 1,
+      why: [
+        'Careful: this puts the smallest number of days (the freshest customers) first, so they would get group 1, the “weak” score. Upside down!',
+        'Yes! DESC puts the biggest gaps (the customers who left long ago) first, so they get 1, and the freshest customers end up last with 4.',
+        'That lines customers up by their id number, which has nothing to do with how recently they bought.',
+        'It makes a huge difference: one direction gives sensible scores, the other gives upside-down scores.'
+      ]
+    },
+    {
+      type: 'try',
+      title: 'Scoring the first ten customers',
+      body: `<p>Now we do the same with real customers: three NTILE columns, one for each of R, F and M, and a little <code>r || f || m</code> that glues the three digits into a short code (the <code>||</code> sign means “stick these together as text”).</p>
+<p>Read a few rows:</p>
+<ul>
+<li><b>Customer 5: code 334.</b> Recent (3), orders often (3), spends a lot (4). A great customer.</li>
+<li><b>Customer 9: code 344.</b> Even better on frequency.</li>
+<li><b>Customer 2: code 122.</b> The recency score is 1: they are among the longest-gone customers.</li>
+<li><b>Customer 6: code 112.</b> Gone for 741 days, few orders, modest money.</li>
+</ul>
+<p>You may also notice <code>customer_id</code> inside every ORDER BY. That is a <b>tie-breaker</b>, a polite way of saying: “if two customers have exactly the same value, put the lower id first, so the answer is the same every time.”</p>`,
       code: `WITH rfm AS (
     SELECT o.customer_id,
            CAST(julianday('2026-06-30') - julianday(MAX(o.order_date)) AS INTEGER) AS recency_days,
@@ -139,19 +273,36 @@ ORDER BY customer_id
 LIMIT 10;`
     },
     {
+      id: 'sql-8-4-ex3',
+      type: 'exercise',
+      title: 'Your turn: how are the recency scores spread?',
+      body: `<p>Let’s check that the R score does what we claim. For each R score from 1 to 4, return: <code>r</code>, <code>customers</code> (how many are in that group), <code>newest_days</code> (the <b>smallest</b> recency in the group) and <code>oldest_days</code> (the <b>largest</b>). Order by <code>r</code>.</p>
+<p><b>Think before you type:</b> the first scratch pad (<code>rfm</code>) is already written for you in the starter. You add a second one, <code>scored</code>, that calculates <code>NTILE(4) OVER (ORDER BY recency_days DESC, customer_id) AS r</code>. Then the final query groups by <code>r</code> and uses COUNT, MIN and MAX. If the scores work, group 1 should hold the oldest recency numbers and group 4 the newest.</p>`,
+      starter: `-- Write your query below\n\nWITH rfm AS (\n    SELECT customer_id,\n           CAST(julianday('2026-06-30') - julianday(MAX(order_date)) AS INTEGER) AS recency_days\n    FROM orders\n    GROUP BY customer_id\n)\n-- add a scored CTE, then the final SELECT\nSELECT * FROM rfm LIMIT 5;\n`,
+      hints: [
+        `After the rfm scratch pad, add a comma and a second one: scored AS (SELECT customer_id, recency_days, NTILE(4) OVER (ORDER BY recency_days DESC, customer_id) AS r FROM rfm).`,
+        `The final query is SELECT r, COUNT(*) AS customers, MIN(recency_days) AS newest_days, MAX(recency_days) AS oldest_days FROM scored GROUP BY r ORDER BY r;`,
+        `WITH rfm AS (SELECT customer_id, CAST(julianday('2026-06-30') - julianday(MAX(order_date)) AS INTEGER) AS recency_days FROM orders GROUP BY customer_id), scored AS (SELECT customer_id, recency_days, NTILE(4) OVER (ORDER BY recency_days DESC, customer_id) AS r FROM rfm) SELECT r, COUNT(*) AS customers, MIN(recency_days) AS newest_days, MAX(recency_days) AS oldest_days FROM scored GROUP BY r ORDER BY r;`
+      ],
+      solution: `WITH rfm AS (SELECT customer_id, CAST(julianday('2026-06-30') - julianday(MAX(order_date)) AS INTEGER) AS recency_days FROM orders GROUP BY customer_id), scored AS (SELECT customer_id, recency_days, NTILE(4) OVER (ORDER BY recency_days DESC, customer_id) AS r FROM rfm) SELECT r, COUNT(*) AS customers, MIN(recency_days) AS newest_days, MAX(recency_days) AS oldest_days FROM scored GROUP BY r ORDER BY r;`,
+      ordered: true
+    },
+    {
       type: 'explain',
-      title: 'An honest warning: ties',
-      body: `<div class="callout watch"><b>NTILE does not respect ties.</b> It cuts the sorted list into four equal-sized groups <b>even when customers have identical values</b>. TradeFlow has 384 customers with exactly 4 orders each. Watch what happens to them:</div>`
+      title: 'An honest warning: NTILE and ties',
+      body: `<div class="callout watch"><b>Picture a race.</b> Four runners cross the line at exactly the same time. Should one get gold, one silver, one bronze and one nothing? Of course not, they tied. But NTILE is like a very strict race official who insists on <b>equal-sized groups no matter what</b>. If many customers share the same value, NTILE still has to split them into different groups, and it uses our tie-breaker (customer_id) to decide who goes where.</div>
+<p>Is this a real problem for us? Let’s find out. In TradeFlow, <b>384 customers have placed exactly 4 orders</b>. Same value, so they should all get the same frequency score. Do they?</p>`
     },
     {
       type: 'try',
       title: 'Same number of orders, different scores',
-      body: `<p>The F=1 group runs from 1 up to <b>4</b> orders, and the F=2 group starts at <b>4</b> orders too. Customers 3, 4 and 11 (4 orders each) got F=1, while customers 20, 23 and 31 (also 4 orders) got F=2, purely because of their <code>customer_id</code> tie-breaker. That is not fair, and it is a real weakness of NTILE-based RFM.</p>`,
+      body: `<p>Look at the <code>fewest_orders</code> and <code>most_orders</code> columns. The F=1 group covers customers with 1 up to <b>4</b> orders. The F=2 group starts at <b>4</b> orders too. So some customers with exactly 4 orders got F=1, and others with exactly 4 orders got F=2, purely because of their id numbers. (Customers 3, 4 and 11 got F=1, while customers 20, 23 and 31 got F=2, all with 4 orders.)</p>
+<p>That isn’t fair, and a good analyst says so out loud rather than hiding it.</p>`,
       code: `WITH rfm AS (
-    SELECT o.customer_id,
+    SELECT customer_id,
            COUNT(*) AS frequency
-    FROM orders o
-    GROUP BY o.customer_id
+    FROM orders
+    GROUP BY customer_id
 ),
 scored AS (
     SELECT *, NTILE(4) OVER (ORDER BY frequency, customer_id) AS f
@@ -167,8 +318,9 @@ ORDER BY f;`
     },
     {
       type: 'try',
-      title: 'The professional fix: fixed thresholds',
-      body: `<p>When a measure has many ties (like order counts), mature teams replace NTILE with <b>fixed business thresholds</b> that anyone can read and defend: here 1-2 orders = 1, 3-4 = 2, 5-6 = 3, 7+ = 4. Now identical customers <b>always</b> get identical scores, and the groups are simply what they are (213, 664, 628 and 477 customers). In this lesson we continue with NTILE because it works for any data, but you now know its limits.</p>`,
+      title: 'The professional fix: write the thresholds yourself',
+      body: `<p>When a measurement has lots of ties, many teams skip NTILE and simply <b>write the cut-offs down</b>: 1 to 2 orders is score 1, 3 to 4 is score 2, 5 to 6 is score 3, 7 or more is score 4. Now anyone with 4 orders gets the same score, always, and anyone can read the rule and agree or disagree with it. The groups come out uneven (213, 664, 628 and 477 customers), and that is fine, because that is how the customers really are.</p>
+<p>For the rest of this lesson we keep NTILE, because it works on any data without you choosing cut-offs. But now you know when to reach for the fixed-threshold method instead.</p>`,
       code: `WITH f AS (
     SELECT customer_id, COUNT(*) AS frequency
     FROM orders
@@ -184,42 +336,67 @@ GROUP BY f_score
 ORDER BY f_score;`
     },
     {
-      id: 'sql-8-4-ex3',
-      type: 'exercise',
-      title: 'Your turn: how are the R scores spread?',
-      body: `<p>Build the Recency score <code>r</code> with <code>NTILE(4) OVER (ORDER BY recency_days DESC, customer_id)</code>, then return, for each score: <code>r</code>, <code>customers</code> (how many), <code>newest_days</code> (the smallest recency in that group) and <code>oldest_days</code> (the largest). Order by <code>r</code>. The first CTE is already written for you.</p>`,
-      starter: `-- Write your query below\n\nWITH rfm AS (\n    SELECT customer_id,\n           CAST(julianday('2026-06-30') - julianday(MAX(order_date)) AS INTEGER) AS recency_days\n    FROM orders\n    GROUP BY customer_id\n)\n-- add a scored CTE, then the final SELECT\nSELECT * FROM rfm LIMIT 5;\n`,
-      hints: [
-        `Add a second CTE: scored AS (SELECT customer_id, recency_days, NTILE(4) OVER (ORDER BY recency_days DESC, customer_id) AS r FROM rfm). Then SELECT r, COUNT(*), MIN(recency_days), MAX(recency_days) ... GROUP BY r.`,
-        `WITH rfm AS (SELECT customer_id, CAST(julianday('2026-06-30') - julianday(MAX(order_date)) AS INTEGER) AS recency_days FROM orders GROUP BY customer_id), scored AS (SELECT customer_id, recency_days, NTILE(4) OVER (ORDER BY recency_days DESC, customer_id) AS r FROM rfm) SELECT r, COUNT(*) AS customers, MIN(recency_days) AS newest_days, MAX(recency_days) AS oldest_days FROM scored GROUP BY r ORDER BY r;`
-      ],
-      solution: `WITH rfm AS (SELECT customer_id, CAST(julianday('2026-06-30') - julianday(MAX(order_date)) AS INTEGER) AS recency_days FROM orders GROUP BY customer_id), scored AS (SELECT customer_id, recency_days, NTILE(4) OVER (ORDER BY recency_days DESC, customer_id) AS r FROM rfm) SELECT r, COUNT(*) AS customers, MIN(recency_days) AS newest_days, MAX(recency_days) AS oldest_days FROM scored GROUP BY r ORDER BY r;`,
-      ordered: true
-    },
-    {
       type: 'explain',
-      title: 'From three scores to six named segments',
-      body: `<p>Scores like “344” are for analysts. Managers need <b>names and actions</b>. We turn scores into segments with a <code>CASE WHEN</code> (Lesson 2.7). <b>Order matters</b>: CASE stops at the <b>first</b> rule that matches, so we write the most specific rules first.</p>
+      title: 'From scores to names a manager can use',
+      body: `<p>A code like “334” makes sense to an analyst. The marketing manager wants words: “who are my best customers?” So we translate score combinations into <b>six named segments</b> using a <code>CASE WHEN</code>.</p>
+<p>Think of CASE as a <b>bouncer with a list</b>. The bouncer reads the rules from top to bottom, and the moment a customer matches a rule, he stamps that name on them and stops reading. That is why the <b>order of the rules matters</b>: the most special groups come first, and “everyone else” comes last.</p>
 <table class="mini">
-<tr><th>Segment</th><th>Rule</th><th>Meaning</th></tr>
-<tr><td><b>Champions</b></td><td>R≥3 and F≥3 and M≥3</td><td>Recent, frequent, big spenders</td></tr>
-<tr><td><b>Loyal</b></td><td>R≥3 and F≥2</td><td>Recent and repeat buyers</td></tr>
-<tr><td><b>At risk</b></td><td>R≤2 and F≥3 and M≥3</td><td>Used to be great, now drifting away</td></tr>
-<tr><td><b>Lost</b></td><td>R=1 and F≤2</td><td>Long gone and never very engaged</td></tr>
-<tr><td><b>New or promising</b></td><td>R≥3 and F=1</td><td>Recent, but still few orders</td></tr>
-<tr><td><b>Needs attention</b></td><td>everyone else</td><td>The middle that does not fit above</td></tr>
-</table>`
+<tr><th>Rule (checked top to bottom)</th><th>Segment</th><th>In everyday words</th></tr>
+<tr><td>R is 3 or 4, and F is 3 or 4, and M is 3 or 4</td><td><b>Champions</b></td><td>Bought recently, buy often, spend a lot</td></tr>
+<tr><td>R is 3 or 4, and F is 2 or more</td><td><b>Loyal</b></td><td>Bought recently and come back regularly</td></tr>
+<tr><td>R is 1 or 2, and F is 3 or 4, and M is 3 or 4</td><td><b>At risk</b></td><td>Used to be great, but have gone quiet</td></tr>
+<tr><td>R is 1, and F is 1 or 2</td><td><b>Lost</b></td><td>Gone for a long time, never very active</td></tr>
+<tr><td>R is 3 or 4, and F is 1</td><td><b>New or promising</b></td><td>Bought recently, but only a few times so far</td></tr>
+<tr><td>anyone left over</td><td><b>Needs attention</b></td><td>The middle group that fits none of the above</td></tr>
+</table>
+<p>Let’s test the bouncer on customers we already know. Customer 5 is <b>334</b>: R=3, F=3, M=4, so the very first rule matches and they are a <b>Champion</b>. Customer 2 is <b>122</b>: R=1 and F=2, so the “Lost” rule catches them. Does the SQL agree with us?</p>`
     },
     {
       type: 'try',
-      title: 'Step 3: the segment table',
-      body: `<p>Here is the whole picture. Read it like a manager:</p>
+      title: 'Where do customers 1 to 5 land?',
+      body: `<p>Read down the last column. Customer 5 is a <b>Champion</b>, customer 2 is <b>Lost</b>, exactly as we predicted by hand. Customers 1 and 4 are <b>New or promising</b>: recent, but only a few orders. Customer 3 is <b>Needs attention</b>: R=2 and F=1 fit none of the named rules, so the bouncer’s “everyone else” rule catches them.</p>`,
+      code: `WITH rfm AS (
+    SELECT o.customer_id,
+           CAST(julianday('2026-06-30') - julianday(MAX(o.order_date)) AS INTEGER) AS recency_days,
+           COUNT(*) AS frequency,
+           ROUND(SUM(CASE WHEN o.order_status IN ('Completed', 'Processing') THEN p.amount ELSE 0 END), 2) AS monetary
+    FROM orders o
+    JOIN payments p ON p.order_id = o.order_id
+    GROUP BY o.customer_id
+),
+scored AS (
+    SELECT *,
+           NTILE(4) OVER (ORDER BY recency_days DESC, customer_id) AS r,
+           NTILE(4) OVER (ORDER BY frequency, customer_id) AS f,
+           NTILE(4) OVER (ORDER BY monetary, customer_id) AS m
+    FROM rfm
+),
+segmented AS (
+    SELECT *,
+           CASE WHEN r >= 3 AND f >= 3 AND m >= 3 THEN 'Champions'
+                WHEN r >= 3 AND f >= 2 THEN 'Loyal'
+                WHEN r <= 2 AND f >= 3 AND m >= 3 THEN 'At risk'
+                WHEN r = 1 AND f <= 2 THEN 'Lost'
+                WHEN r >= 3 AND f = 1 THEN 'New or promising'
+                ELSE 'Needs attention' END AS segment
+    FROM scored
+)
+SELECT customer_id, r, f, m, segment
+FROM segmented
+WHERE customer_id IN (1, 2, 3, 4, 5)
+ORDER BY customer_id;`
+    },
+    {
+      type: 'try',
+      title: 'The whole customer base, in six groups',
+      body: `<p>Now the same query, but grouped to show all 1,982 customers at once. This is the moment the manager’s question gets answered. Read it like a story:</p>
 <ul>
-<li><b>Champions</b>: 494 customers (25% of the customer base) bring <b>38.5%</b> of net revenue.</li>
-<li><b>At risk</b>: only 271 customers, but they are worth <b>20.0%</b> of revenue (284.5 million). This is the group where a rescue campaign pays for itself.</li>
-<li><b>Lost</b>: 360 customers, just <b>10.7%</b> of revenue. Not worth an expensive campaign.</li>
-<li><b>New or promising</b>: 143 customers, 3.7% of revenue, but they are the ones you can still shape into loyal buyers.</li>
-</ul>`,
+<li><b>Champions:</b> 494 customers, a quarter of the customer base, bring <b>38.5%</b> of the money. Thank them and protect them.</li>
+<li><b>At risk:</b> just 271 customers, yet worth <b>20.0%</b> of revenue (about 284.5 million). They used to be wonderful and have gone quiet. <b>This is the group to rescue.</b></li>
+<li><b>Lost:</b> 360 customers, only <b>10.7%</b> of revenue. Not worth an expensive campaign.</li>
+<li><b>New or promising:</b> 143 customers, 3.7% of revenue so far, but these are the ones you can still turn into loyal buyers.</li>
+</ul>
+<p>So the answer to “who gets the email?” is no longer “everybody”. It is a plan: <i>rescue the At risk group first.</i> Press <b>Chart it</b> to see the sizes.</p>`,
       chart: 'bar',
       chartTitle: 'Customers per segment',
       code: `WITH rfm AS (
@@ -259,12 +436,13 @@ ORDER BY revenue DESC;`
     {
       id: 'sql-8-4-ex4',
       type: 'exercise',
-      title: 'Your turn: count the customers in each segment',
-      body: `<p>Return <code>segment</code> and <code>customers</code> (how many), ordered by <code>customers</code> from largest to smallest, then by <code>segment</code> A to Z. The <code>rfm</code> and <code>scored</code> CTEs are already written. <b>You</b> add the <code>segmented</code> CTE with the six-rule CASE from the table above, then the final query.</p>`,
+      title: 'Your turn: build the segments yourself',
+      body: `<p>Now you build the bouncer. Return <code>segment</code> and <code>customers</code> (how many customers in each), ordered by <code>customers</code> from largest to smallest, and then by <code>segment</code> A to Z so ties are settled.</p>
+<p><b>Think before you type:</b> the starter already contains the first two scratch pads, <code>rfm</code> and <code>scored</code>. Your job has two parts. <b>Part 1:</b> add a third scratch pad called <code>segmented</code> that adds a <code>segment</code> column using the CASE from the table above. <b>Part 2:</b> write the final query that counts customers per segment. Keep the rules in the same order as the table, because the bouncer reads top to bottom. And remember the comma after the <code>scored</code> pad.</p>`,
       starter: `-- Write your query below\n\nWITH rfm AS (\n    SELECT o.customer_id,\n           CAST(julianday('2026-06-30') - julianday(MAX(o.order_date)) AS INTEGER) AS recency_days,\n           COUNT(*) AS frequency,\n           ROUND(SUM(CASE WHEN o.order_status IN ('Completed', 'Processing') THEN p.amount ELSE 0 END), 2) AS monetary\n    FROM orders o\n    JOIN payments p ON p.order_id = o.order_id\n    GROUP BY o.customer_id\n),\nscored AS (\n    SELECT *,\n           NTILE(4) OVER (ORDER BY recency_days DESC, customer_id) AS r,\n           NTILE(4) OVER (ORDER BY frequency, customer_id) AS f,\n           NTILE(4) OVER (ORDER BY monetary, customer_id) AS m\n    FROM rfm\n)\n-- add the segmented CTE here (remember the comma above), then the final SELECT\nSELECT * FROM scored LIMIT 5;\n`,
       hints: [
-        `After the scored CTE add a comma, then: segmented AS (SELECT *, CASE WHEN r >= 3 AND f >= 3 AND m >= 3 THEN 'Champions' WHEN ... END AS segment FROM scored). Write the rules in the same order as the table.`,
-        `Final query: SELECT segment, COUNT(*) AS customers FROM segmented GROUP BY segment ORDER BY customers DESC, segment;`,
+        `After the scored pad add a comma, then: segmented AS (SELECT *, CASE WHEN r >= 3 AND f >= 3 AND m >= 3 THEN 'Champions' WHEN ... ELSE 'Needs attention' END AS segment FROM scored). Follow the table row by row.`,
+        `Once the pad exists, the final query is: SELECT segment, COUNT(*) AS customers FROM segmented GROUP BY segment ORDER BY customers DESC, segment;`,
         `WITH rfm AS (SELECT o.customer_id, CAST(julianday('2026-06-30') - julianday(MAX(o.order_date)) AS INTEGER) AS recency_days, COUNT(*) AS frequency, ROUND(SUM(CASE WHEN o.order_status IN ('Completed', 'Processing') THEN p.amount ELSE 0 END), 2) AS monetary FROM orders o JOIN payments p ON p.order_id = o.order_id GROUP BY o.customer_id), scored AS (SELECT *, NTILE(4) OVER (ORDER BY recency_days DESC, customer_id) AS r, NTILE(4) OVER (ORDER BY frequency, customer_id) AS f, NTILE(4) OVER (ORDER BY monetary, customer_id) AS m FROM rfm), segmented AS (SELECT *, CASE WHEN r >= 3 AND f >= 3 AND m >= 3 THEN 'Champions' WHEN r >= 3 AND f >= 2 THEN 'Loyal' WHEN r <= 2 AND f >= 3 AND m >= 3 THEN 'At risk' WHEN r = 1 AND f <= 2 THEN 'Lost' WHEN r >= 3 AND f = 1 THEN 'New or promising' ELSE 'Needs attention' END AS segment FROM scored) SELECT segment, COUNT(*) AS customers FROM segmented GROUP BY segment ORDER BY customers DESC, segment;`
       ],
       solution: `WITH rfm AS (SELECT o.customer_id, CAST(julianday('2026-06-30') - julianday(MAX(o.order_date)) AS INTEGER) AS recency_days, COUNT(*) AS frequency, ROUND(SUM(CASE WHEN o.order_status IN ('Completed', 'Processing') THEN p.amount ELSE 0 END), 2) AS monetary FROM orders o JOIN payments p ON p.order_id = o.order_id GROUP BY o.customer_id), scored AS (SELECT *, NTILE(4) OVER (ORDER BY recency_days DESC, customer_id) AS r, NTILE(4) OVER (ORDER BY frequency, customer_id) AS f, NTILE(4) OVER (ORDER BY monetary, customer_id) AS m FROM rfm), segmented AS (SELECT *, CASE WHEN r >= 3 AND f >= 3 AND m >= 3 THEN 'Champions' WHEN r >= 3 AND f >= 2 THEN 'Loyal' WHEN r <= 2 AND f >= 3 AND m >= 3 THEN 'At risk' WHEN r = 1 AND f <= 2 THEN 'Lost' WHEN r >= 3 AND f = 1 THEN 'New or promising' ELSE 'Needs attention' END AS segment FROM scored) SELECT segment, COUNT(*) AS customers FROM segmented GROUP BY segment ORDER BY customers DESC, segment;`,
@@ -273,26 +451,27 @@ ORDER BY revenue DESC;`
     {
       id: 'sql-8-4-c2',
       type: 'check',
-      title: 'Budget for one win-back campaign. Which segment gets it first?',
-      body: `<p>Remember: Champions 494 customers (38.5% of revenue), At risk 271 (20.0%), Lost 360 (10.7%), New or promising 143 (3.7%).</p>`,
-      options: ['Champions, they are worth the most', 'At risk: they used to buy often and spend a lot, they are still reachable, and losing them costs real money', 'Lost, because they are the biggest group of unhappy customers', 'New or promising, because they are the newest'],
+      title: 'One win-back campaign, one budget. Which segment goes first?',
+      body: `<p>Remember the numbers: Champions 494 customers (38.5% of revenue), At risk 271 (20.0%), Lost 360 (10.7%), New or promising 143 (3.7%).</p>`,
+      options: ['Champions, because they are worth the most', 'At risk: they used to buy often and spend a lot, they are still within reach, and losing them would cost real money', 'Lost, because they are the biggest group of unhappy customers', 'New or promising, because they are the newest'],
       answer: 1,
       why: [
-        'Champions are already buying. A win-back campaign is wasted on people who never left; they deserve rewards and thanks instead.',
-        'Yes! “At risk” combines high past value with falling recency. A good message now can save revenue that is about to disappear. Lost customers cost more to reactivate and bring less.',
-        'Lost customers are numerous, but they brought little and left long ago. Win-back budget goes much further on At risk.',
-        'New customers need a different treatment (onboarding and a nudge to the second order), not a win-back message.'
+        'Champions are already buying. A win-back message to someone who never left is wasted. They deserve a thank-you and a reward, not a rescue.',
+        'Yes! “At risk” combines high past value with falling recency, and that is the sweet spot for a rescue: a good message now can save money that is about to disappear. Lost customers cost much more to bring back and were never worth as much.',
+        'Lost customers are many, but they brought little and left long ago. Win-back money goes much further on the At risk group.',
+        'New customers need a different message (a welcome and a nudge towards a second order), not a win-back.'
       ]
     },
     {
       id: 'sql-8-4-ex5',
       type: 'exercise',
-      title: 'Challenge: how much do the Champions bring?',
-      body: `<p>Return one row with <code>champions</code> (how many customers are Champions) and <code>revenue_share_pct</code> (their share of the <b>total</b> monetary value of all customers, as a percentage rounded to 1 decimal). The three CTEs are written for you, so you only need the final query. Tip: the total can come from a scalar subquery like <code>(SELECT SUM(monetary) FROM segmented)</code>.</p>`,
+      title: 'Challenge: how much do the Champions really bring?',
+      body: `<p>The manager asks: <i>“What share of our money comes from the Champions?”</i> Return one row with <code>champions</code> (how many customers are Champions) and <code>revenue_share_pct</code> (their share of the <b>total</b> monetary value of <b>all</b> customers, as a percentage rounded to 1 decimal place).</p>
+<p><b>Think before you type:</b> all three scratch pads are already in the starter, so you only write the last query. Two numbers are needed: the Champions’ money, <code>SUM(monetary)</code> with a <code>WHERE segment = 'Champions'</code>, and the money of <b>everyone</b>, which you can fetch with a small query inside brackets: <code>(SELECT SUM(monetary) FROM segmented)</code>. A share is “part divided by whole”, times 100.</p>`,
       starter: `-- Write your query below\n\nWITH rfm AS (\n    SELECT o.customer_id,\n           CAST(julianday('2026-06-30') - julianday(MAX(o.order_date)) AS INTEGER) AS recency_days,\n           COUNT(*) AS frequency,\n           ROUND(SUM(CASE WHEN o.order_status IN ('Completed', 'Processing') THEN p.amount ELSE 0 END), 2) AS monetary\n    FROM orders o\n    JOIN payments p ON p.order_id = o.order_id\n    GROUP BY o.customer_id\n),\nscored AS (\n    SELECT *,\n           NTILE(4) OVER (ORDER BY recency_days DESC, customer_id) AS r,\n           NTILE(4) OVER (ORDER BY frequency, customer_id) AS f,\n           NTILE(4) OVER (ORDER BY monetary, customer_id) AS m\n    FROM rfm\n),\nsegmented AS (\n    SELECT *,\n           CASE WHEN r >= 3 AND f >= 3 AND m >= 3 THEN 'Champions'\n                WHEN r >= 3 AND f >= 2 THEN 'Loyal'\n                WHEN r <= 2 AND f >= 3 AND m >= 3 THEN 'At risk'\n                WHEN r = 1 AND f <= 2 THEN 'Lost'\n                WHEN r >= 3 AND f = 1 THEN 'New or promising'\n                ELSE 'Needs attention' END AS segment\n    FROM scored\n)\n-- write your final SELECT here\nSELECT * FROM segmented LIMIT 5;\n`,
       hints: [
-        `Filter to the Champions with WHERE segment = 'Champions'. COUNT(*) gives the customers; SUM(monetary) gives their money.`,
-        `Divide by the grand total: 100.0 * SUM(monetary) / (SELECT SUM(monetary) FROM segmented), wrapped in ROUND(..., 1).`,
+        `Keep only the Champions with WHERE segment = 'Champions'. Then COUNT(*) gives how many there are, and SUM(monetary) gives their money.`,
+        `Divide by the grand total: 100.0 * SUM(monetary) / (SELECT SUM(monetary) FROM segmented), all wrapped in ROUND(..., 1).`,
         `WITH rfm AS (SELECT o.customer_id, CAST(julianday('2026-06-30') - julianday(MAX(o.order_date)) AS INTEGER) AS recency_days, COUNT(*) AS frequency, ROUND(SUM(CASE WHEN o.order_status IN ('Completed', 'Processing') THEN p.amount ELSE 0 END), 2) AS monetary FROM orders o JOIN payments p ON p.order_id = o.order_id GROUP BY o.customer_id), scored AS (SELECT *, NTILE(4) OVER (ORDER BY recency_days DESC, customer_id) AS r, NTILE(4) OVER (ORDER BY frequency, customer_id) AS f, NTILE(4) OVER (ORDER BY monetary, customer_id) AS m FROM rfm), segmented AS (SELECT *, CASE WHEN r >= 3 AND f >= 3 AND m >= 3 THEN 'Champions' WHEN r >= 3 AND f >= 2 THEN 'Loyal' WHEN r <= 2 AND f >= 3 AND m >= 3 THEN 'At risk' WHEN r = 1 AND f <= 2 THEN 'Lost' WHEN r >= 3 AND f = 1 THEN 'New or promising' ELSE 'Needs attention' END AS segment FROM scored) SELECT COUNT(*) AS champions, ROUND(100.0 * SUM(monetary) / (SELECT SUM(monetary) FROM segmented), 1) AS revenue_share_pct FROM segmented WHERE segment = 'Champions';`
       ],
       solution: `WITH rfm AS (SELECT o.customer_id, CAST(julianday('2026-06-30') - julianday(MAX(o.order_date)) AS INTEGER) AS recency_days, COUNT(*) AS frequency, ROUND(SUM(CASE WHEN o.order_status IN ('Completed', 'Processing') THEN p.amount ELSE 0 END), 2) AS monetary FROM orders o JOIN payments p ON p.order_id = o.order_id GROUP BY o.customer_id), scored AS (SELECT *, NTILE(4) OVER (ORDER BY recency_days DESC, customer_id) AS r, NTILE(4) OVER (ORDER BY frequency, customer_id) AS f, NTILE(4) OVER (ORDER BY monetary, customer_id) AS m FROM rfm), segmented AS (SELECT *, CASE WHEN r >= 3 AND f >= 3 AND m >= 3 THEN 'Champions' WHEN r >= 3 AND f >= 2 THEN 'Loyal' WHEN r <= 2 AND f >= 3 AND m >= 3 THEN 'At risk' WHEN r = 1 AND f <= 2 THEN 'Lost' WHEN r >= 3 AND f = 1 THEN 'New or promising' ELSE 'Needs attention' END AS segment FROM scored) SELECT COUNT(*) AS champions, ROUND(100.0 * SUM(monetary) / (SELECT SUM(monetary) FROM segmented), 1) AS revenue_share_pct FROM segmented WHERE segment = 'Champions';`,
@@ -300,366 +479,29 @@ ORDER BY revenue DESC;`
     },
     {
       type: 'explain',
-      title: 'Does it add up? Caveats, and what you can do now',
-      body: `<div class="callout work"><b>The reconciliation habit:</b> the monetary values of all 1,982 customers add up to <b>1,419,860,053.32</b>, exactly the net revenue from Lesson 8.1. Whenever you build a breakdown, check that the pieces add back to a number the business already trusts. The 18 customers who never ordered are not in RFM at all (they have no recency); “never bought” is a separate marketing question.</div>
-<div class="callout watch"><b>Be honest about the limits:</b> RFM scores are <b>relative</b> (a Champion is “top quarter compared with this customer base”), the cut-offs are a judgement call, and ties can shift people between groups. Present segments as a <b>starting point for action and testing</b>, not as a law of nature.</div>
-<p>In this lesson you learned to:</p>
+      title: 'Does it add up? Honest limits, and what you can do now',
+      body: `<div class="callout work"><b>The “does it add up?” habit:</b> whenever you split a number into pieces, check that the pieces add back to the whole. The money of all 1,982 customers adds up to <b>1,419,860,053.32</b>, which is exactly the net revenue from Lesson 8.1. That match is your proof that nothing was lost or double-counted along the way. (Also note that the 18 customers who never ordered are not here at all: they have no “last order”, so they have no recency. “Never bought” is a separate question for marketing.)</div>
+<div class="callout watch"><b>Be honest about the limits.</b> RFM scores are <b>relative</b>: a “Champion” means “in the top half or so compared with <i>this</i> group of customers”, not “perfect”. The cut-offs are a judgement call, and as you saw, ties can nudge similar customers into different groups. So present segments as a <b>smart starting point for action and testing</b> (“let’s try a rescue offer on At risk and see what happens”), not as a law of nature.</div>
+<p>Here is what you can now do that you couldn’t before:</p>
 <ul>
-<li>Calculate <b>Recency, Frequency and Monetary</b> per customer from orders and payments, with a fixed as-of date</li>
-<li>Score with <code>NTILE(4)</code>, keep every score pointing the same way, and add tie-breakers</li>
-<li>Spot the <b>tie problem</b> and know the fixed-threshold alternative</li>
-<li>Turn scores into <b>named segments</b> with CASE WHEN, and measure each segment’s size and revenue share</li>
-<li>Reconcile a breakdown back to a known company total</li>
+<li>Measure <b>Recency, Frequency and Monetary</b> for every customer, with a fixed “photograph date”</li>
+<li>Explain <code>julianday</code>, <code>MAX</code>, <code>GROUP BY</code>, <code>CASE</code> and <code>NTILE</code> in plain words, and use them together</li>
+<li>Avoid the <b>direction trap</b> and understand the <b>tie problem</b>, including the fixed-threshold alternative</li>
+<li>Turn scores into <b>named segments</b> and measure each group’s size and share of revenue</li>
+<li>Turn a table of numbers into a <b>recommendation</b> a manager can act on</li>
 </ul>
-<p><b>Interview-style questions:</b></p>
+<p><b>Interview-style questions to practise saying out loud:</b></p>
 <ol>
 <li>What is RFM analysis, and what is it used for?</li>
 <li>Why is the Recency score sorted in the opposite direction to the other two?</li>
 <li>What is a weakness of using NTILE to score customers, and how can you reduce it?</li>
 </ol>
 <details><summary>Show model answers</summary>
-<p><b>1.</b> RFM scores every customer on how recently they bought, how often, and how much they spend, then groups them into segments (such as Champions or At risk) so marketing and sales can treat each group differently and target budgets where they pay back.</p>
-<p><b>2.</b> Because for recency a <i>smaller</i> number of days is better, while for frequency and monetary a <i>bigger</i> number is better. Sorting recency descending makes “4” mean best for all three scores.</p>
-<p><b>3.</b> NTILE forces equal-sized groups even when many customers share the same value, so identical customers can land in different groups. Reduce it with deterministic tie-breakers, or better, use fixed business thresholds that are easy to explain and always give identical customers identical scores.</p>
+<p><b>1.</b> RFM scores every customer on how recently they bought, how often they buy and how much they spend. Then it groups them into segments like Champions or At risk, so a business can send the right message to the right people and spend its marketing budget where it pays back.</p>
+<p><b>2.</b> Because for recency a smaller number of days is better, while for frequency and spending a bigger number is better. Sorting recency in descending order makes “4” mean “best” in all three scores, so they can be compared and combined.</p>
+<p><b>3.</b> NTILE always makes equal-sized groups, even when many customers share exactly the same value, so identical customers can end up in different groups. You can reduce this with a clear tie-breaker so results are repeatable, or better, use fixed business thresholds that always give identical customers identical scores.</p>
 </details>
-<p><b>Coming next:</b> the <b>data-quality audit</b>. Along the way you kept meeting red flags in TradeFlow: orders dated before the customer signed up, payments on cancelled orders, completed orders that never arrived. Next you gather them all into one clean audit report.</p>`
-    }
-  ]
-},
-{
-  id: 'sql-8-5',
-  track: 'sql',
-  title: '8.5 The data-quality audit: can we trust this data?',
-  tables: ['customers', 'regions', 'employees', 'orders', 'order_items', 'payments', 'deliveries'],
-  intro: `Your first week at a new company. The finance director asks: <i>“Before we build any dashboards, can we trust this database?”</i><br><br>A beginner says “yes, it looks fine”. A professional says “<b>let me test it and show you</b>”. Throughout this course you have bumped into strange things in TradeFlow: orders dated before the customer even signed up, money collected on cancelled orders, completed orders that never arrived. In this lesson you stop collecting them by accident and do what real teams do: run a <b>structured audit</b> and finish with <b>one table</b> that lists every red flag, how many rows it touches and how serious it is.`,
-  steps: [
-    {
-      type: 'explain',
-      title: 'A checklist, like a building inspector',
-      body: `<div class="callout analogy"><b>The big idea:</b> before people move into a new building, an inspector walks through with a checklist: wiring, plumbing, doors, fire exits. She does not guess; she tests each item and writes down what failed. A data audit is the same walk-through, with a checklist of <b>six kinds of problems</b>.</div>
-<table class="mini">
-<tr><th>Check</th><th>The question</th><th>TradeFlow example</th></tr>
-<tr><td><b>Completeness</b></td><td>Is anything missing?</td><td>58 customers have no email</td></tr>
-<tr><td><b>Uniqueness</b></td><td>Are rows repeated?</td><td>147 repeated (order, product) lines</td></tr>
-<tr><td><b>Validity</b></td><td>Are values in the right format and range?</td><td>50 emails in capital letters, names with titles</td></tr>
-<tr><td><b>Consistency</b></td><td>Do different tables agree?</td><td>460 Cancelled orders marked Paid</td></tr>
-<tr><td><b>Timeliness / logic</b></td><td>Do dates happen in a possible order?</td><td>5,037 orders dated before the customer signed up</td></tr>
-<tr><td><b>Plausibility</b></td><td>Do the numbers make business sense?</td><td>Payments exactly match their order lines</td></tr>
-</table>
-<p>For every check we write a small query that <b>counts the rows that break the rule</b>. Zero means it passed. Let’s walk through them one at a time, then combine them all.</p>`
-    },
-    {
-      type: 'try',
-      title: 'Completeness: what is missing?',
-      body: `<p>Counting NULLs column by column. Only <b>customers.email</b> (58) has gaps among the main columns. The 1,239 missing delivery dates look scary, but the last row proves they are <b>expected</b>: every one belongs to a delivery that is still In Transit or Failed, so no arrival date exists yet. A professional separates <b>real gaps</b> from <b>gaps that make sense</b>.</p>`,
-      code: `SELECT 'customers.email' AS column_checked, COUNT(*) AS missing_values
-FROM customers WHERE email IS NULL
-UNION ALL
-SELECT 'customers.signup_date', COUNT(*) FROM customers WHERE signup_date IS NULL
-UNION ALL
-SELECT 'orders.order_date', COUNT(*) FROM orders WHERE order_date IS NULL
-UNION ALL
-SELECT 'payments.amount', COUNT(*) FROM payments WHERE amount IS NULL
-UNION ALL
-SELECT 'deliveries.delivery_date (all missing)', COUNT(*) FROM deliveries WHERE delivery_date IS NULL
-UNION ALL
-SELECT 'deliveries.delivery_date (In Transit or Failed, expected)', COUNT(*) FROM deliveries
-WHERE delivery_date IS NULL AND delivery_status IN ('In Transit', 'Failed');`
-    },
-    {
-      id: 'sql-8-5-c1',
-      type: 'check',
-      title: '58 of 2,000 customers have no email. How serious is it?',
-      body: `<p>That is 2.9% of customers. Emails are used for marketing, not for billing or deliveries here.</p>`,
-      options: ['Critical: stop all reporting until every email is filled in', 'Low severity: report it, note it affects email campaigns only, and carry on', 'Delete those 58 customers from the database', 'Fill the gaps with a made-up address like unknown@mail.com'],
-      answer: 1,
-      why: [
-        'Severity depends on the damage. A missing optional contact field does not block revenue reporting.',
-        'Yes! Severity = how much damage the problem does to the decisions being made. Missing email blocks only email campaigns, so: log it, quantify it, move on.',
-        'Deleting customers destroys real orders and revenue history. Never remove data to make a problem disappear.',
-        'Fake values are worse than blanks: they look real, and someone will eventually email them or count them as valid.'
-      ]
-    },
-    {
-      id: 'sql-8-5-ex1',
-      type: 'exercise',
-      title: 'Your turn: orders dated before the customer signed up',
-      body: `<p>Join <code>orders</code> to <code>customers</code> and count the orders whose <code>order_date</code> is <b>earlier</b> than the customer’s <code>signup_date</code>. Return one number called <code>orders_before_signup</code>. (Dates are YYYY-MM-DD text, so comparing them with <code>&lt;</code> works correctly.)</p>`,
-      starter: `-- Write your query below\n\n`,
-      hints: [
-        `JOIN customers c ON c.customer_id = o.customer_id, then WHERE o.order_date < c.signup_date, and COUNT(*).`,
-        `SELECT COUNT(*) AS orders_before_signup FROM orders o JOIN customers c ON c.customer_id = o.customer_id WHERE o.order_date < c.signup_date;`
-      ],
-      solution: `SELECT COUNT(*) AS orders_before_signup FROM orders o JOIN customers c ON c.customer_id = o.customer_id WHERE o.order_date < c.signup_date;`,
-      ordered: true
-    },
-    {
-      type: 'try',
-      title: 'Timeline logic: two rules, two failures',
-      body: `<p>That count is <b>5,037, about half of all orders</b>. The worst gap is order 1042: placed on 2023-01-06 by a customer who “signed up” on 2026-06-01, <b>1,242 days later</b>. Below, the same rule next to a second timeline rule: orders handled by employees <b>before they were hired</b> (4,927 orders, 49.3%).</p>`,
-      code: `SELECT 'Orders dated before customer signup' AS check_name,
-       COUNT(*) AS failing_rows,
-       ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM orders), 1) AS pct_of_orders
-FROM orders o
-JOIN customers c ON c.customer_id = o.customer_id
-WHERE o.order_date < c.signup_date
-UNION ALL
-SELECT 'Orders handled before the employee was hired',
-       COUNT(*),
-       ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM orders), 1)
-FROM orders o
-JOIN employees e ON e.employee_id = o.employee_id
-WHERE o.order_date < e.hire_date;`
-    },
-    {
-      id: 'sql-8-5-c2',
-      type: 'check',
-      title: 'Half of all orders break the signup rule. What is the best response?',
-      body: `<p>5,037 orders (50.4%) are dated before the customer’s signup date, by up to 1,242 days.</p>`,
-      options: ['Delete the 5,037 orders because they are obviously wrong', 'Change each signup_date to match the first order date and move on', 'Report it with the numbers and examples, and ask the data owners what signup_date really means before touching anything', 'Ignore it, because it does not affect revenue'],
-      answer: 2,
-      why: [
-        'Deleting half the orders would wreck revenue, cohorts and everything else, based on a guess.',
-        'Silently rewriting a column is how analysts create numbers nobody can trace. Maybe signup_date means something else (a loyalty-programme registration, a migrated record), and only the owners know.',
-        'Yes! When <b>half</b> the rows fail a rule, the problem is usually the <b>rule or the meaning of the field</b>, not 5,000 separate mistakes. Quantify, show examples, ask the owners, and note the caveat next to any metric that uses signup_date (like our cohorts in Lesson 8.2).',
-        'It may not change today’s revenue, but it affects cohort and customer-age analysis, and it signals a process problem in how the data is recorded.'
-      ]
-    },
-    {
-      type: 'explain',
-      title: 'Consistency: do the tables agree with each other?',
-      body: `<p>This is where audits earn their salary. Each table can look fine on its own while contradicting its neighbours. The pattern is always the same: <b>join two tables, then test for a combination that should be impossible</b>. For example: an order that is <b>Cancelled</b> should not have a payment whose status is <b>Paid</b> (unless a refund was forgotten).</p>`
-    },
-    {
-      type: 'try',
-      title: 'Money collected on orders that did not stick',
-      body: `<p>Two groups of contradictions: <b>460</b> Cancelled orders and <b>437</b> Returned orders have a payment marked <b>Paid</b>. Together that is <b>897 payments and about 141.5 million</b>. Either refunds were not recorded, or the status columns are updated by different systems at different times. We cannot know from the data alone, which is exactly why we <b>report</b> instead of fixing.</p>`,
-      code: `SELECT o.order_status,
-       COUNT(*) AS paid_payments,
-       ROUND(SUM(p.amount), 2) AS money_involved
-FROM payments p
-JOIN orders o ON o.order_id = p.order_id
-WHERE p.payment_status = 'Paid'
-  AND o.order_status IN ('Cancelled', 'Returned')
-GROUP BY o.order_status
-ORDER BY paid_payments DESC;`
-    },
-    {
-      id: 'sql-8-5-ex2',
-      type: 'exercise',
-      title: 'Your turn: Paid on Cancelled',
-      body: `<p>Count the payments whose <code>payment_status</code> is <b>Paid</b> but whose order has <code>order_status</code> <b>Cancelled</b>. Return one number called <code>paid_on_cancelled</code>.</p>`,
-      starter: `-- Write your query below\n\n`,
-      hints: [
-        `Join payments p to orders o on order_id, filter both statuses in the WHERE clause, then COUNT(*).`,
-        `SELECT COUNT(*) AS paid_on_cancelled FROM payments p JOIN orders o ON o.order_id = p.order_id WHERE p.payment_status = 'Paid' AND o.order_status = 'Cancelled';`
-      ],
-      solution: `SELECT COUNT(*) AS paid_on_cancelled FROM payments p JOIN orders o ON o.order_id = p.order_id WHERE p.payment_status = 'Paid' AND o.order_status = 'Cancelled';`,
-      ordered: true
-    },
-    {
-      type: 'explain',
-      title: 'Validity: right format, right value?',
-      body: `<p>Validity checks ask whether a value <b>looks the way it should</b>. In TradeFlow, two things stand out in the customers table: <b>emails in capital letters</b> and <b>names that carry titles or suffixes</b> (such as “Dr.” or “PhD”). They are not “wrong”, but they break matching, grouping and sorting, as you saw in Module 2.</p>
-<div class="callout watch"><b>A NULL subtlety:</b> the test <code>email &lt;&gt; LOWER(email)</code> never counts the 58 missing emails, because comparing NULL with anything gives “unknown”, not true. That is exactly what we want here: missing emails are already counted under <b>Completeness</b>, so each problem is counted <b>once</b>.</div>`
-    },
-    {
-      type: 'try',
-      title: 'Spot the inconsistent formats',
-      body: `<p>Customer 27 is stored as <b>EUGENE.WALTON941@GMAIL.COM</b> while most emails are lowercase. A plain <code>WHERE email = 'eugene.walton941@gmail.com'</code> would miss it. Count: <b>50</b> such emails.</p>`,
-      code: `SELECT customer_id, customer_name, email
-FROM customers
-WHERE email <> LOWER(email)
-ORDER BY customer_id
-LIMIT 5;`
-    },
-    {
-      id: 'sql-8-5-ex3',
-      type: 'exercise',
-      title: 'Your turn: how many emails are capitalised?',
-      body: `<p>Return one number called <code>capitalised_emails</code>: the customers whose <code>email</code> is not equal to <code>LOWER(email)</code>.</p>`,
-      starter: `-- Write your query below\n\n`,
-      hints: [
-        `WHERE email <> LOWER(email), then COUNT(*). NULL emails drop out automatically.`,
-        `SELECT COUNT(*) AS capitalised_emails FROM customers WHERE email <> LOWER(email);`
-      ],
-      solution: `SELECT COUNT(*) AS capitalised_emails FROM customers WHERE email <> LOWER(email);`,
-      ordered: true
-    },
-    {
-      id: 'sql-8-5-ex4',
-      type: 'exercise',
-      title: 'Your turn: names that start with a title',
-      body: `<p>Some customer names begin with a title: <b>Dr.</b>, <b>Mr.</b>, <b>Mrs.</b>, <b>Ms.</b> or <b>Miss</b> (followed by a space). Count them with <code>LIKE</code> and <code>OR</code>. Return one number called <code>names_with_titles</code>. For example, “Dr. Steven Martin” and “Miss Debra Williams PhD” both count.</p>`,
-      starter: `-- Write your query below\n\n`,
-      hints: [
-        `Use LIKE 'Dr.%' for names starting with Dr. and join the other four patterns with OR. For Miss use 'Miss %' (with the space).`,
-        `SELECT COUNT(*) AS names_with_titles FROM customers WHERE customer_name LIKE 'Dr.%' OR customer_name LIKE 'Mr.%' OR customer_name LIKE 'Mrs.%' OR customer_name LIKE 'Ms.%' OR customer_name LIKE 'Miss %';`
-      ],
-      solution: `SELECT COUNT(*) AS names_with_titles FROM customers WHERE customer_name LIKE 'Dr.%' OR customer_name LIKE 'Mr.%' OR customer_name LIKE 'Mrs.%' OR customer_name LIKE 'Ms.%' OR customer_name LIKE 'Miss %';`,
-      ordered: true
-    },
-    {
-      type: 'explain',
-      title: 'The audit table: one query, every check',
-      body: `<p>Now the professional move. Instead of twenty separate queries, stack them with <code>UNION ALL</code> (Lesson 3.5) into <b>one table</b> with three columns:</p>
-<ul>
-<li><b>check_name</b>: what rule was tested, in plain words</li>
-<li><b>failing_rows</b>: how many rows broke the rule (0 means it passed)</li>
-<li><b>severity</b>: High, Medium or Low, a <b>judgement</b> based on how much the problem can distort decisions (anything touching <b>money</b> is High)</li>
-</ul>
-<p>Sort by <code>failing_rows</code> so the biggest problems come first, and <b>keep the zeros</b>. A passed check is good news you want to show: “we tested 8 more things and they are clean” is part of the report.</p>`
-    },
-    {
-      type: 'try',
-      title: 'The full TradeFlow data-quality audit',
-      body: `<p>Twenty checks in one result. Press <b>Chart it</b> to see where the trouble concentrates. Read it like an auditor:</p>
-<ul>
-<li><b>Timeline problems</b> (signup, hire dates) are the largest by count, but they hinge on what the fields <i>mean</i>.</li>
-<li><b>High severity</b> items touch money or deliveries: Completed orders not fully paid (<b>1,176</b>), Completed orders not delivered (<b>994</b>), Paid on Cancelled (<b>460</b>) and Paid on Returned (<b>437</b>).</li>
-<li><b>Low severity</b> items are cosmetic: formats, titles, missing emails.</li>
-<li>The <b>zero rows at the bottom are wins</b>: no orphans, every order has a payment, and every payment matches its order lines to the cent.</li>
-</ul>`,
-      chart: 'bar',
-      chartTitle: 'Failing rows per check',
-      code: `SELECT 'Orders dated before customer signup' AS check_name, COUNT(*) AS failing_rows, 'Medium' AS severity
-FROM orders o JOIN customers c ON c.customer_id = o.customer_id
-WHERE o.order_date < c.signup_date
-UNION ALL
-SELECT 'Orders handled before employee hired', COUNT(*), 'Medium'
-FROM orders o JOIN employees e ON e.employee_id = o.employee_id
-WHERE o.order_date < e.hire_date
-UNION ALL
-SELECT 'Completed orders not fully paid', COUNT(*), 'High'
-FROM orders o JOIN payments p ON p.order_id = o.order_id
-WHERE o.order_status = 'Completed' AND p.payment_status <> 'Paid'
-UNION ALL
-SELECT 'Completed orders not delivered', COUNT(*), 'High'
-FROM orders o JOIN deliveries d ON d.order_id = o.order_id
-WHERE o.order_status = 'Completed' AND d.delivery_status IN ('In Transit', 'Failed')
-UNION ALL
-SELECT 'Paid on Cancelled orders', COUNT(*), 'High'
-FROM payments p JOIN orders o ON o.order_id = p.order_id
-WHERE p.payment_status = 'Paid' AND o.order_status = 'Cancelled'
-UNION ALL
-SELECT 'Paid on Returned orders', COUNT(*), 'High'
-FROM payments p JOIN orders o ON o.order_id = p.order_id
-WHERE p.payment_status = 'Paid' AND o.order_status = 'Returned'
-UNION ALL
-SELECT 'Cancelled orders marked Delivered', COUNT(*), 'Medium'
-FROM orders o JOIN deliveries d ON d.order_id = o.order_id
-WHERE o.order_status = 'Cancelled' AND d.delivery_status = 'Delivered'
-UNION ALL
-SELECT 'Repeated order lines (same order and product)', COUNT(*), 'Medium'
-FROM (SELECT order_id, product_id FROM order_items GROUP BY order_id, product_id HAVING COUNT(*) > 1)
-UNION ALL
-SELECT 'Customers with no email', COUNT(*), 'Low' FROM customers WHERE email IS NULL
-UNION ALL
-SELECT 'Capitalised emails', COUNT(*), 'Low' FROM customers WHERE email <> LOWER(email)
-UNION ALL
-SELECT 'Names starting with a title', COUNT(*), 'Low'
-FROM customers
-WHERE customer_name LIKE 'Dr.%' OR customer_name LIKE 'Mr.%' OR customer_name LIKE 'Mrs.%'
-   OR customer_name LIKE 'Ms.%' OR customer_name LIKE 'Miss %'
-UNION ALL
-SELECT 'Names ending with a suffix', COUNT(*), 'Low'
-FROM customers
-WHERE customer_name LIKE '% MD' OR customer_name LIKE '% PhD' OR customer_name LIKE '% DDS'
-   OR customer_name LIKE '% DVM' OR customer_name LIKE '% Jr.' OR customer_name LIKE '% II'
-   OR customer_name LIKE '% III' OR customer_name LIKE '% IV'
-UNION ALL
-SELECT 'Orders without a payment', COUNT(*), 'High'
-FROM orders o LEFT JOIN payments p ON p.order_id = o.order_id
-WHERE p.order_id IS NULL
-UNION ALL
-SELECT 'Order lines pointing to a missing order', COUNT(*), 'High'
-FROM order_items i LEFT JOIN orders o ON o.order_id = i.order_id
-WHERE o.order_id IS NULL
-UNION ALL
-SELECT 'Payments that differ from their order lines', COUNT(*), 'High'
-FROM payments p
-JOIN (SELECT order_id, SUM(quantity * unit_price) AS line_total FROM order_items GROUP BY order_id) i
-  ON i.order_id = p.order_id
-WHERE ABS(p.amount - i.line_total) > 0.01
-UNION ALL
-SELECT 'Payments with zero or negative amount', COUNT(*), 'High' FROM payments WHERE amount <= 0
-UNION ALL
-SELECT 'Payments dated before their order', COUNT(*), 'Medium'
-FROM payments p JOIN orders o ON o.order_id = p.order_id
-WHERE p.payment_date < o.order_date
-UNION ALL
-SELECT 'Dispatches dated before their order', COUNT(*), 'Medium'
-FROM deliveries d JOIN orders o ON o.order_id = d.order_id
-WHERE d.dispatch_date < o.order_date
-UNION ALL
-SELECT 'Deliveries arriving before dispatch', COUNT(*), 'Medium'
-FROM deliveries WHERE delivery_date < dispatch_date
-UNION ALL
-SELECT 'Customers whose region is in another country', COUNT(*), 'Medium'
-FROM customers c JOIN regions r ON r.region_id = c.region_id
-WHERE r.country <> c.country
-ORDER BY failing_rows DESC, check_name;`
-    },
-    {
-      id: 'sql-8-5-c3',
-      type: 'check',
-      title: 'The audit flags 147 repeated order lines. Should you delete them?',
-      body: `<p>You learned in Lesson 6.2 what happens when those lines are removed.</p>`,
-      options: ['Yes, duplicates are always errors', 'No: they look like repeats but they are real purchases. Removing them loses 8,989,289.32 of sales and breaks the payment totals, so flag them for investigation and leave them in', 'Yes, but only the 28 that are exact copies', 'No, but only because the rule says never to delete anything'],
-      answer: 1,
-      why: [
-        'Not always. A repeated (order, product) pair can be a customer buying the same item on a second line. Here the payments only reconcile if the repeated lines <b>stay</b>.',
-        'Yes! The test that decides is <b>reconciliation</b>: with all 25,000 lines kept, payments match the order lines in 10,000 of 10,000 orders. Drop the repeats and 146 orders stop matching. An audit flag is a question, not a verdict.',
-        'Even the exact copies could be genuine (same item, same quantity, bought twice in one basket). Without evidence from the data owners, nothing should be deleted.',
-        'The real reason is evidence, not a slogan: the numbers prove the lines are genuine.'
-      ]
-    },
-    {
-      id: 'sql-8-5-ex5',
-      type: 'exercise',
-      title: 'Challenge: build a four-check mini audit',
-      body: `<p>Return a table with columns <code>check_name</code> and <code>failing_rows</code> and exactly these four rows, <b>sorted by failing_rows from largest to smallest</b>. Use these exact names:</p>
-<ul>
-<li><code>Orders before signup</code>: orders dated before the customer’s signup date</li>
-<li><code>Capitalised emails</code>: emails not equal to their lowercase version</li>
-<li><code>Paid on cancelled orders</code>: Paid payments on Cancelled orders</li>
-<li><code>Completed but undelivered</code>: Completed orders whose delivery status is In Transit or Failed</li>
-</ul>
-<p>Stack four SELECTs with <code>UNION ALL</code>, then put one <code>ORDER BY failing_rows DESC</code> at the very end.</p>`,
-      starter: `-- Write your query below\n\n`,
-      hints: [
-        `Each SELECT looks like: SELECT 'Name here' AS check_name, COUNT(*) AS failing_rows FROM ... WHERE ... Put UNION ALL between them. The first SELECT sets the column names.`,
-        `The 4th check needs orders JOIN deliveries ON order_id with WHERE o.order_status = 'Completed' AND d.delivery_status IN ('In Transit', 'Failed'). The expected counts are 5037, 994, 460 and 50.`,
-        `SELECT 'Orders before signup' AS check_name, COUNT(*) AS failing_rows FROM orders o JOIN customers c ON c.customer_id = o.customer_id WHERE o.order_date < c.signup_date UNION ALL SELECT 'Capitalised emails', COUNT(*) FROM customers WHERE email <> LOWER(email) UNION ALL SELECT 'Paid on cancelled orders', COUNT(*) FROM payments p JOIN orders o ON o.order_id = p.order_id WHERE p.payment_status = 'Paid' AND o.order_status = 'Cancelled' UNION ALL SELECT 'Completed but undelivered', COUNT(*) FROM orders o JOIN deliveries d ON d.order_id = o.order_id WHERE o.order_status = 'Completed' AND d.delivery_status IN ('In Transit', 'Failed') ORDER BY failing_rows DESC;`
-      ],
-      solution: `SELECT 'Orders before signup' AS check_name, COUNT(*) AS failing_rows FROM orders o JOIN customers c ON c.customer_id = o.customer_id WHERE o.order_date < c.signup_date UNION ALL SELECT 'Capitalised emails', COUNT(*) FROM customers WHERE email <> LOWER(email) UNION ALL SELECT 'Paid on cancelled orders', COUNT(*) FROM payments p JOIN orders o ON o.order_id = p.order_id WHERE p.payment_status = 'Paid' AND o.order_status = 'Cancelled' UNION ALL SELECT 'Completed but undelivered', COUNT(*) FROM orders o JOIN deliveries d ON d.order_id = o.order_id WHERE o.order_status = 'Completed' AND d.delivery_status IN ('In Transit', 'Failed') ORDER BY failing_rows DESC;`,
-      ordered: true
-    },
-    {
-      type: 'explain',
-      title: 'Reporting findings, and what you can do now',
-      body: `<div class="callout work"><b>How to write up a finding:</b> one short block per issue, in this order: <b>what</b> (“460 Cancelled orders carry a Paid payment”), <b>evidence</b> (the query and three example order ids), <b>impact</b> (73.1 million of cash that may be refundable), <b>suggested action</b> and <b>owner</b> (finance, to confirm refunds). Facts first, opinions last. <b>Never silently fix data</b>: tell the people who own it, and record which version of the data your numbers came from.</div>
-<div class="callout work"><b>At work:</b> teams turn these checks into <b>automated tests</b> that run every day. Tools such as <b>dbt tests</b> and <b>Great Expectations</b> do exactly what you just did (not null, unique, relationships between tables, accepted values), and alert someone when a count goes above zero. Your audit table is the idea behind them, written by hand.</div>
-<p>In this lesson you learned to:</p>
-<ul>
-<li>Audit data with six kinds of checks: completeness, uniqueness, validity, consistency, timeline logic and plausibility</li>
-<li>Separate <b>expected</b> gaps from <b>real</b> problems, and rate severity by the damage to decisions</li>
-<li>Test consistency across tables with joins, and count each problem only once</li>
-<li>Stack every check into <b>one audit table</b> with <code>UNION ALL</code> and keep the zeros</li>
-<li>Report findings with numbers and examples, and ask owners instead of silently “fixing”</li>
-</ul>
-<p><b>Interview-style questions:</b></p>
-<ol>
-<li>You receive a new dataset. How do you check its quality before analysing it?</li>
-<li>About half the orders are dated before the customer’s signup date. What do you do?</li>
-<li>When is a duplicate row an error, and when is it not?</li>
-</ol>
-<details><summary>Show model answers</summary>
-<p><b>1.</b> Profile it first (row counts, ranges, distinct values), then test completeness, uniqueness, validity, cross-table consistency, date logic and plausibility with counting queries, reconcile totals against a trusted number, and report the findings with severity before building anything on top.</p>
-<p><b>2.</b> Quantify it (count, percentage, worst examples), check which fields and systems are involved, and ask the data owners what the field means. When half the rows fail, the rule or the field definition is usually the issue, so I would not delete or rewrite data, and I would add a caveat to any metric that depends on it.</p>
-<p><b>3.</b> A duplicate is an error when the same real-world event was recorded twice (for example the same transaction loaded twice). It is not an error when the data legitimately contains repeated lines, such as buying the same product on two lines. The decider is evidence, like whether totals reconcile with and without the repeats.</p>
-</details>
-<p><b>Coming next, the final lesson of the SQL track:</b> a <b>mock interview</b>. Five classic SQL interview problems on real TradeFlow data (second-highest value, the median, top product per category, streaks and more), a method for solving any problem under pressure, and a cheat sheet to keep.</p>`
+<p><b>Coming next:</b> over the last lessons you kept bumping into strange things in TradeFlow: orders dated before the customer even signed up, payments on cancelled orders, completed orders that never arrived. Next, in the <b>data-quality audit</b>, we gather every one of those red flags into a single report you could hand to a finance director.</p>`
     }
   ]
 }
