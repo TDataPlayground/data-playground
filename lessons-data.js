@@ -959,6 +959,17 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'm8-d',
+  file: 'lessons/m8d.js',
+  v: 1,
+  track: 'sql',
+  title: 'Module 8: SQL in the Real World, End-to-End Business Queries',
+  lessons: [
+    { id: 'sql-8-6', title: '8.6 The SQL interview: five classic problems on real TradeFlow data', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
