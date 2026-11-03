@@ -940,12 +940,11 @@ MODULES.push({
 MODULES.push({
   id: 'm8-b',
   file: 'lessons/m8b.js',
-  v: 1,
+  v: 2,
   track: 'sql',
   title: 'Module 8: SQL in the Real World, End-to-End Business Queries',
   lessons: [
-    { id: 'sql-8-4', title: '8.4 RFM segmentation: who are your best customers?', ex: 5 },
-    { id: 'sql-8-5', title: '8.5 The data-quality audit: can we trust this data?', ex: 5 }
+    { id: 'sql-8-4', title: '8.4 RFM segmentation: who are your best customers?', ex: 5 }
   ]
 });
 
