@@ -951,7 +951,7 @@ MODULES.push({
 MODULES.push({
   id: 'm8-c',
   file: 'lessons/m8c.js',
-  v: 1,
+  v: 2,
   track: 'sql',
   title: 'Module 8: SQL in the Real World, End-to-End Business Queries',
   lessons: [
