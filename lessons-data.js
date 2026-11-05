@@ -993,6 +993,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py1-c',
+  file: 'lessons/py1c.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 1: Python Basics for Analysts',
+  lessons: [
+    { id: 'py-1-4', title: '1.4 Lists: keeping many things in one jar', ex: 5 },
+    { id: 'py-1-5', title: '1.5 Dictionaries: looking things up by name', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
