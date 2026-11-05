@@ -988,7 +988,14 @@ const PLANNED = [
   { id: 'm5', track: 'sql', title: 'Module 5: CTEs, Writing SQL You Can Actually Read' },
   { id: 'm6', track: 'sql', title: 'Module 6: Window Functions, the Most Powerful SQL You’ll Ever Learn' },
   { id: 'm7', track: 'sql', title: 'Module 7: Advanced SQL, Query Optimization, Indexes and Execution Plans' },
-  { id: 'm8', track: 'sql', title: 'Module 8: SQL in the Real World, End-to-End Business Queries' }
+  { id: 'm8', track: 'sql', title: 'Module 8: SQL in the Real World, End-to-End Business Queries' },
+  { id: 'py2', track: 'python', title: 'Module 2: Pandas, Loading and Understanding Your Data' },
+  { id: 'py3', track: 'python', title: 'Module 3: Data Cleaning, the Work That Takes 80% of Your Time' },
+  { id: 'py4', track: 'python', title: 'Module 4: Data Transformation with Pandas' },
+  { id: 'py5', track: 'python', title: 'Module 5: NumPy, the Math Engine Under the Hood' },
+  { id: 'py6', track: 'python', title: 'Module 6: Exploratory Data Analysis (EDA)' },
+  { id: 'py7', track: 'python', title: 'Module 7: Python for Visualisation' },
+  { id: 'py8', track: 'python', title: 'Module 8: Automating Analyst Workflows with Python' }
 ];
 
 function catalogMetas() {
