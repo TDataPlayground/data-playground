@@ -72,13 +72,17 @@
     .chartArea { margin-top: 10px; }
     .chartTools { margin-bottom: 8px; }
     .chartWrap { max-width: 760px; }
+    .pyout { background: #0b1d3a; border-radius: 6px; padding: 10px; color: #e6f1ff; font-family: Consolas, monospace; font-size: 0.88rem; white-space: pre-wrap; margin: 6px 0; overflow-x: auto; }
+    .pyout.pyerr { color: #ff9e9e; border-left: 3px solid #ff7b7b; }
+    .pyfig img { max-width: 100%; border-radius: 6px; margin-top: 6px; }
+    .pyload { color: #7f93b0; font-size: 0.85rem; margin-top: 4px; }
     #lessonNav { display: flex; justify-content: space-between; gap: 12px; margin: 10px 0 50px; }
     #lessonNav a { background: #112b52; border: 1px solid #2a4c80; color: #fff; text-decoration: none; padding: 12px 16px; border-radius: 8px; font-size: 0.92rem; max-width: 48%; }
     #lessonNav a:hover { border-color: #f5b301; }
   </style>
 </head>
 <body>
-  <header>Data <span>Playground</span> &middot; Learn &middot; v5
+  <header>Data <span>Playground</span> &middot; Learn &middot; v6
     <a href="learn.html">All lessons</a><a href="index.html">Home</a><a href="workbench.html">SQL</a><a href="python.html">Python</a>
   </header>
   <main>
@@ -99,6 +103,7 @@
   </main>
 
   <script src="lessons-data.js"></script>
+  <script src="dp-python.js?v=1"></script>
   <script>
     const SCHEMAS = {
       customers: { customer_id: 'INTEGER', customer_name: 'TEXT', email: 'TEXT', country: 'TEXT', region_id: 'INTEGER', signup_date: 'TEXT' },
@@ -158,6 +163,17 @@
         moduleLoaded[mod.id] = true;
       }
       return findLesson(id);
+    }
+
+
+    async function ensureSql() {
+      if (db) return;
+      if (typeof initSqlJs === 'undefined') throw new Error('The SQL engine could not load. Check your connection and refresh');
+      setStatus('Starting the SQL engine...');
+      const SQL = await initSqlJs({
+        locateFile: f => 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/' + f
+      });
+      db = new SQL.Database();
     }
 
     function parseCSV(text) {
@@ -391,7 +407,9 @@
     }
 
     function renderNav(lesson) {
-      const metas = catalogMetas();
+      const all = catalogMetas();
+      const here = all.find(m => m.id === lesson.id);
+      const metas = here ? all.filter(m => m.track === here.track) : all;
       const i = metas.findIndex(m => m.id === lesson.id);
       let h = '';
       if (i > 0) h += '<a href="lessons.html?lesson=' + encodeURIComponent(metas[i - 1].id) + '">\u2190 ' + escHtml(metas[i - 1].title) + '</a>';
@@ -437,11 +455,21 @@
         if (ta) {
           ta.value = s.type === 'try' ? s.code : s.starter;
           ta.rows = Math.max(3, ta.value.split('\n').length + 1);
-          ta.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') runStep(el, s); });
-          el.querySelector('.run').addEventListener('click', () => runStep(el, s));
+          const isPy = lesson.lang === 'python';
+          const go = () => (isPy ? runStepPy(el, s) : runStep(el, s));
+          ta.addEventListener('keydown', e => {
+            if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); go(); return; }
+            if (isPy && e.key === 'Tab') {
+              e.preventDefault();
+              const a = ta.selectionStart, b = ta.selectionEnd;
+              ta.value = ta.value.slice(0, a) + '    ' + ta.value.slice(b);
+              ta.selectionStart = ta.selectionEnd = a + 4;
+            }
+          });
+          el.querySelector('.run').addEventListener('click', go);
         }
         if (s.type === 'exercise') {
-          el.querySelector('.check').addEventListener('click', () => checkStep(el, s));
+          el.querySelector('.check').addEventListener('click', () => (lesson.lang === 'python' ? checkStepPy(el, s) : checkStep(el, s)));
           const hb = el.querySelector('.hintBox');
           const hbtn = el.querySelector('.hintBtn');
           if (hbtn) {
@@ -511,16 +539,25 @@
       try { lesson = await ensureLesson(id); }
       catch (e) { setStatus(e.message + '. Check that the lesson file exists in your repo.', true); return; }
       if (!lesson) { setStatus('Lesson not found: ' + id, true); return; }
-      setStatus('Loading lesson data. This can take a few seconds...');
-      try {
-        for (const t of lesson.tables) await loadTable(t);
-      } catch (e) {
-        setStatus(e.message + '. Check that the file exists in your data folder.', true);
-        return;
-      }
       currentLesson = lesson;
+      if (lesson.lang === 'python') {
+        try {
+          if (typeof ensurePython === 'undefined') throw new Error('dp-python.js is missing from your repo');
+          await ensurePython(lesson);
+        }
+        catch (e) { setStatus('Could not start Python: ' + (e.message || e) + '. Check your connection and refresh the page.', true); return; }
+      } else {
+        setStatus('Loading lesson data. This can take a few seconds...');
+        try {
+          await ensureSql();
+          for (const t of lesson.tables) await loadTable(t);
+        } catch (e) {
+          setStatus(e.message + '. Check that the file exists in your data folder.', true);
+          return;
+        }
+      }
       renderLesson(lesson);
-      renderSchema(lesson);
+      if (lesson.lang === 'python') renderSchemaPy(lesson); else renderSchema(lesson);
       renderNav(lesson);
       setStatus('');
       try { localStorage.setItem('dp_last', lesson.id); } catch (e) {}
@@ -533,11 +570,6 @@
         return;
       }
       try {
-        setStatus('Starting the SQL engine...');
-        const SQL = await initSqlJs({
-          locateFile: f => 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/' + f
-        });
-        db = new SQL.Database();
         const metas = catalogMetas();
         const sel = document.getElementById('lessonSelect');
         let group = null, groupName = null;
