@@ -970,6 +970,17 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py1',
+  file: 'lessons/py1.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 1: Python Basics for Analysts',
+  lessons: [
+    { id: 'py-1-1', title: '1.1 Meet Python: your first lines of code', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
