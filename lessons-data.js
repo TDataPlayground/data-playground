@@ -1017,6 +1017,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py1-e',
+  file: 'lessons/py1e.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 1: Python Basics for Analysts',
+  lessons: [
+    { id: 'py-1-8', title: '1.8 Writing Python like a professional', ex: 5 },
+    { id: 'py-1-9', title: '1.9 Functions: building your own tools', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
