@@ -124,7 +124,7 @@ def _fmt_error(e, code):
     lines = code.splitlines()
     if isinstance(e, SyntaxError):
         ln = e.lineno
-        s = 'SyntaxError on line %s: %s' % (ln, e.msg)
+        s = '%s on line %s: %s' % (type(e).__name__, ln, e.msg)
         if ln and 1 <= ln <= len(lines):
             s += '\n    ' + lines[ln - 1].strip()
         return s
