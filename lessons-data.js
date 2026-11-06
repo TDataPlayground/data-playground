@@ -1005,6 +1005,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py1-d',
+  file: 'lessons/py1d.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 1: Python Basics for Analysts',
+  lessons: [
+    { id: 'py-1-6', title: '1.6 Making decisions: if, elif and else', ex: 5 },
+    { id: 'py-1-7', title: '1.7 Loops: doing the same job again and again', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
