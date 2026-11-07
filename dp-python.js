@@ -2,7 +2,7 @@
 // Runs Python in the browser with Pyodide. Safe to update without touching lessons.html.
 
     const PY_URL = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js';
-    const PY_HELPER = String.raw`import sys, io, json, ast, time, base64, traceback, contextlib, types, copy
+    const PY_HELPER = String.raw`import sys, io, json, ast, time, base64, traceback, contextlib, types, copy, warnings
 
 _DP = {'snap': None}
 
@@ -18,6 +18,16 @@ def dp_style():
         'ytick.color': '#cfd8e3', 'axes.edgecolor': '#2a4c80', 'grid.color': '#1f3a66',
         'axes.prop_cycle': cycler(color=['#4fc3f7', '#f5b301', '#81d4fa', '#ffd54f'])
     })
+    return 'ok'
+
+
+def dp_pandas_setup():
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        import pandas as pd
+    pd.set_option('display.width', 250)
+    pd.set_option('display.max_columns', 50)
+    pd.set_option('display.max_colwidth', 60)
     return 'ok'
 
 
@@ -92,7 +102,10 @@ def _norm(value, stdout, figsig):
             if not isinstance(df.index, pd.RangeIndex):
                 df = df.reset_index()
             return {'kind': 'table', 'ncols': int(df.shape[1]), 'rows': _to_py(df.values.tolist())}
-        return {'kind': 'value', 'value': _to_py(value)}
+        r = repr(value)
+        if len(r) > 2000:
+            r = r[:2000]
+        return {'kind': 'value', 'value': _to_py(value), 'repr': r}
     if stdout.strip():
         return {'kind': 'text', 'text': _clean_text(stdout)}
     if figsig:
@@ -184,7 +197,10 @@ def dp_run(code, guard=True, limit=8.0):
         last = None
         if tree.body and isinstance(tree.body[-1], ast.Expr):
             last = ast.Expression(tree.body.pop().value)
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err), warnings.catch_warnings():
+            warnings.simplefilter('ignore', DeprecationWarning)
+            warnings.simplefilter('ignore', FutureWarning)
+            warnings.simplefilter('ignore', PendingDeprecationWarning)
             if guard:
                 sys.settrace(tracer)
             try:
@@ -231,6 +247,7 @@ let pyHelperReady = false;
         pyHelperReady = true;
       }
       if (pk.indexOf('matplotlib') >= 0) await pyodide.runPythonAsync('dp_style()');
+      if (pk.indexOf('pandas') >= 0) await pyodide.runPythonAsync('dp_pandas_setup()');
       await pyodide.runPythonAsync("import os\nos.chdir('/home/pyodide')");
       lesson._fileInfo = [];
       for (const name of (lesson.files || [])) {
@@ -296,6 +313,7 @@ let pyHelperReady = false;
         if (v === null) return 'None';
         if (typeof v === 'boolean') return v ? 'True' : 'False';
         if (typeof v === 'number' || typeof v === 'string') return String(v);
+        if (typeof n.repr === 'string') return n.repr;
       }
       return null;
     }
@@ -336,7 +354,7 @@ let pyHelperReady = false;
       }
       if (got.kind === 'table') {
         if (got.ncols !== exp.ncols) return { ok: false, msg: 'Your table has ' + got.ncols + ' column(s) but the task needs ' + exp.ncols + '. Re-read which columns are asked for, in order.' };
-        if (got.rows.length !== exp.rows.length) return { ok: false, msg: 'Your table has ' + got.rows.length + ' rows but the expected answer has ' + exp.rows.length + '. Check your filters.' };
+        if (got.rows.length !== exp.rows.length) return { ok: false, msg: 'Your table has ' + got.rows.length + ' rows but the expected answer has ' + exp.rows.length + '. Check how many rows you asked for, and any conditions.' };
         if (deepEq(got.rows, exp.rows, unordered)) return { ok: true };
         return { ok: false, msg: unordered ? 'Right shape, but some values differ. Check your columns and conditions.' : 'Right shape, but the values or their order differ. Check your sorting and conditions.' };
       }
