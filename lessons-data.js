@@ -1029,6 +1029,17 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py2',
+  file: 'lessons/py2a.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 2: Pandas, Loading and Understanding Your Data',
+  lessons: [
+    { id: 'py-2-1', title: '2.1 Meet Pandas: your first DataFrame', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
