@@ -28,6 +28,12 @@ def dp_pandas_setup():
     pd.set_option('display.width', 250)
     pd.set_option('display.max_columns', 50)
     pd.set_option('display.max_colwidth', 60)
+    def _fmt(x):
+        if abs(x) >= 1000:
+            return '%.2f' % x
+        return ('%.4f' % x).rstrip('0').rstrip('.')
+
+    pd.set_option('display.float_format', _fmt)
     return 'ok'
 
 
