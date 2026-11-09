@@ -1052,6 +1052,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py3',
+  file: 'lessons/py3a.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 3: Data Cleaning, the Work That Takes 80% of Your Time',
+  lessons: [
+    { id: 'py-3-1', title: '3.1 Missing values: find them, understand them, decide', ex: 5 },
+    { id: 'py-3-2', title: '3.2 Fixing data types: real dates and real numbers', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
