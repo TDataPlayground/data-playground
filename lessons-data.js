@@ -1064,6 +1064,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py3-b',
+  file: 'lessons/py3b.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 3: Data Cleaning, the Work That Takes 80% of Your Time',
+  lessons: [
+    { id: 'py-3-3', title: '3.3 Duplicates: find them, and know when not to remove them', ex: 5 },
+    { id: 'py-3-4', title: '3.4 Cleaning messy text: emails, names and categories', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
