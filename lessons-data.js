@@ -1076,6 +1076,17 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py3-c',
+  file: 'lessons/py3c.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 3: Data Cleaning, the Work That Takes 80% of Your Time',
+  lessons: [
+    { id: 'py-3-5', title: '3.5 Validation: prove the data is ready', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
