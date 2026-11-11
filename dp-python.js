@@ -208,6 +208,7 @@ def dp_run(code, guard=True, limit=8.0):
             warnings.simplefilter('ignore', DeprecationWarning)
             warnings.simplefilter('ignore', FutureWarning)
             warnings.simplefilter('ignore', PendingDeprecationWarning)
+            warnings.filterwarnings('ignore', message='This pattern is interpreted as a regular expression')
             if guard:
                 sys.settrace(tracer)
             try:
