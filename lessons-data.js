@@ -1087,6 +1087,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py4',
+  file: 'lessons/py4a.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 4: Data Transformation with Pandas',
+  lessons: [
+    { id: 'py-4-1', title: '4.1 Calculated columns: making new facts from old ones', ex: 5 },
+    { id: 'py-4-2', title: '4.2 Filtering rows: keep only what answers the question', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
