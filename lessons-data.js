@@ -1099,6 +1099,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py4-b',
+  file: 'lessons/py4b.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 4: Data Transformation with Pandas',
+  lessons: [
+    { id: 'py-4-3', title: '4.3 Sorting: the top ten, the bottom ten and everything in between', ex: 5 },
+    { id: 'py-4-4', title: '4.4 Grouping and summarising: one answer per group', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
