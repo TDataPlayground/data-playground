@@ -1135,6 +1135,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py5-b',
+  file: 'lessons/py5b.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 5: NumPy, the Math Engine Under the Hood',
+  lessons: [
+    { id: 'py-5-3', title: '5.3 Axes, missing values and spread: summarising a grid', ex: 5 },
+    { id: 'py-5-4', title: '5.4 Percentiles, z-scores and the finished detector', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
