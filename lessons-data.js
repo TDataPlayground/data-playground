@@ -1111,6 +1111,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py4-c',
+  file: 'lessons/py4c.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 4: Data Transformation with Pandas',
+  lessons: [
+    { id: 'py-4-5', title: '4.5 Joining tables: bringing the story back together', ex: 5 },
+    { id: 'py-4-6', title: '4.6 Mapping, bands and the master table', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
