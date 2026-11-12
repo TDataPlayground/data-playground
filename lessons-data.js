@@ -1123,6 +1123,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py5',
+  file: 'lessons/py5a.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 5: NumPy, the Math Engine Under the Hood',
+  lessons: [
+    { id: 'py-5-1', title: '5.1 Arrays: why NumPy is fast and how it thinks', ex: 5 },
+    { id: 'py-5-2', title: '5.2 Choosing and labelling values: slices, masks and np.where', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
