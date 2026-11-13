@@ -1147,6 +1147,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py6',
+  file: 'lessons/py6a.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 6: Exploratory Data Analysis (EDA)',
+  lessons: [
+    { id: 'py-6-1', title: '6.1 EDA, step by step: the first look and the tie-out', ex: 5 },
+    { id: 'py-6-2', title: '6.2 Distributions, concentration and the 80/20 test', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
