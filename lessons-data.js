@@ -1159,6 +1159,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py6-b',
+  file: 'lessons/py6b.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 6: Exploratory Data Analysis (EDA)',
+  lessons: [
+    { id: 'py-6-3', title: '6.3 Time and relationships: trends, correlation and what is not there', ex: 5 },
+    { id: 'py-6-4', title: '6.4 Challenge your findings, then write the report', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
