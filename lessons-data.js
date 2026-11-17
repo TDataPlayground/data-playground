@@ -1171,6 +1171,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py7',
+  file: 'lessons/py7a.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 7: Python for Visualisation',
+  lessons: [
+    { id: 'py-7-1', title: '7.1 Your first charts: lines for change over time', ex: 5 },
+    { id: 'py-7-2', title: '7.2 Bar charts: comparing categories honestly', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
