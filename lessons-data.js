@@ -1183,6 +1183,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py7-b',
+  file: 'lessons/py7b.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 7: Python for Visualisation',
+  lessons: [
+    { id: 'py-7-3', title: '7.3 Distributions and relationships: the shape of your data', ex: 5 },
+    { id: 'py-7-4', title: '7.4 Chart design and the board pack', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
