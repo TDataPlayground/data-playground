@@ -1195,6 +1195,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py8',
+  file: 'lessons/py8a.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 8: Automating Analyst Workflows with Python',
+  lessons: [
+    { id: 'py-8-1', title: '8.1 From recipes to tools: functions that work on tables', ex: 5 },
+    { id: 'py-8-2', title: '8.2 Pipelines: chain the steps, and let bad data stop the line', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
