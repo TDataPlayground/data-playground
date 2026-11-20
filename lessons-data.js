@@ -1207,6 +1207,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'py8-b',
+  file: 'lessons/py8b.js',
+  v: 1,
+  track: 'python',
+  title: 'Module 8: Automating Analyst Workflows with Python',
+  lessons: [
+    { id: 'py-8-3', title: '8.3 Configuration and parameters: one pipeline, many reports', ex: 5 },
+    { id: 'py-8-4', title: '8.4 The Monday report: a complete automated pipeline', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
