@@ -2,7 +2,7 @@
 
 **Learn data analysis by doing it.** Real lessons, real data, everything running in your browser. Nothing to install.
 
-> **Status:** in active development. The site is not hosted publicly yet. You can run it on your own computer in two minutes, see [Run it on your own computer](#run-it-on-your-own-computer).
+> **Live site:** https://tdataplayground.github.io/data-playground/
 
 ## What you can do here
 
