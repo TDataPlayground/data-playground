@@ -1219,6 +1219,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'st1',
+  file: 'lessons/st1a.js',
+  v: 1,
+  track: 'statistics',
+  title: 'Module 1: Thinking Statistically',
+  lessons: [
+    { id: 'st-1-1', title: '1.1 Signal, noise and uncertainty: is that drop real?', ex: 5 },
+    { id: 'st-1-2', title: '1.2 Centre and spread: mean, median, standard deviation and IQR', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
@@ -1233,7 +1245,14 @@ const PLANNED = [
   { id: 'py5', track: 'python', title: 'Module 5: NumPy, the Math Engine Under the Hood' },
   { id: 'py6', track: 'python', title: 'Module 6: Exploratory Data Analysis (EDA)' },
   { id: 'py7', track: 'python', title: 'Module 7: Python for Visualisation' },
-  { id: 'py8', track: 'python', title: 'Module 8: Automating Analyst Workflows with Python' }
+  { id: 'py8', track: 'python', title: 'Module 8: Automating Analyst Workflows with Python' },
+  { id: 'st2', track: 'statistics', title: 'Module 2: Probability' },
+  { id: 'st3', track: 'statistics', title: 'Module 3: Distributions' },
+  { id: 'st4', track: 'statistics', title: 'Module 4: Estimation and Confidence Intervals' },
+  { id: 'st5', track: 'statistics', title: 'Module 5: Hypothesis Testing' },
+  { id: 'st6', track: 'statistics', title: 'Module 6: Correlation and Regression' },
+  { id: 'st7', track: 'statistics', title: 'Module 7: A/B Testing' },
+  { id: 'st8', track: 'statistics', title: 'Module 8: Statistics in Practice' }
 ];
 
 function catalogMetas() {
