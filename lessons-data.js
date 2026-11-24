@@ -1231,6 +1231,18 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'st1-b',
+  file: 'lessons/st1b.js',
+  v: 1,
+  track: 'statistics',
+  title: 'Module 1: Thinking Statistically',
+  lessons: [
+    { id: 'st-1-3', title: '1.3 Shape, skew and outliers', ex: 5 },
+    { id: 'st-1-4', title: '1.4 Populations, samples and bias', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
