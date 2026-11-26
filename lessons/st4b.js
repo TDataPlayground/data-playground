@@ -407,12 +407,21 @@ print("Bootstrap standard error:", round(boot_means.std(ddof=1), 3))`
       body: `<p>Plot the 2,000 bootstrap means. The distribution should be centred near the original sample mean. Its spread estimates the sampling variability of the mean.</p>
 <p>We add a vertical line at the original sample mean so that the centre of the bootstrap distribution is easy to compare with the observed estimate.</p>
 <p><b>Python connection:</b> <code>plt.axvline()</code> draws a vertical reference line. The <code>label</code> argument names it in the legend. <code>plt.legend()</code> displays that label.</p>`,
-      code: `plt.figure(figsize=(8, 4))
+      code: `import matplotlib.pyplot as plt
+
+# Use the delivery-time sample as the original sample
+original_sample = transit
+
+plt.figure(figsize=(8, 4))
 plt.hist(boot_means, bins=30, density=True)
+
 plt.axvline(
     original_sample.mean(),
+    color="red",
+    linestyle="--",
     label="Original sample mean"
 )
+
 plt.title("Bootstrap distribution of the mean")
 plt.xlabel("Bootstrap mean (days)")
 plt.ylabel("Density")
