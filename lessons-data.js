@@ -1267,6 +1267,46 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'st3',
+  file: 'lessons/st3a.js',
+  v: 1,
+  track: 'statistics',
+  title: 'Module 3: Distributions',
+  lessons: [
+    {
+      id: 'st-3-1',
+      title: '3.1 Distributions: the shape of uncertainty',
+      ex: 5
+    },
+    {
+      id: 'st-3-2',
+      title: '3.2 Counting outcomes: Bernoulli, Binomial and Poisson models',
+      ex: 5
+    }
+  ]
+});
+
+MODULES.push({
+  id: 'st3-b',
+  file: 'lessons/st3b.js',
+  v: 1,
+  track: 'statistics',
+  title: 'Module 3: Distributions',
+  lessons: [
+    {
+      id: 'st-3-3',
+      title: '3.3 The normal distribution: the bell curve and standard scores',
+      ex: 5
+    },
+    {
+      id: 'st-3-4',
+      title: '3.4 Skewed distributions: long tails, lognormal models and business risk',
+      ex: 5
+    }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
