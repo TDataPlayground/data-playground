@@ -1307,6 +1307,31 @@ MODULES.push({
   ]
 });
 
+
+MODULES.push({
+  id: 'st4',
+  file: 'lessons/st4a.js',
+  v: 1,
+  track: 'statistics',
+  title: 'Module 4: Estimation and Confidence Intervals',
+  lessons: [
+    { id: 'st-4-1', title: '4.1 From populations to samples: learning from part of the data', ex: 5 },
+    { id: 'st-4-2', title: '4.2 Sampling distributions and the Central Limit Theorem', ex: 5 }
+  ]
+});
+
+MODULES.push({
+  id: 'st4-b',
+  file: 'lessons/st4b.js',
+  v: 1,
+  track: 'statistics',
+  title: 'Module 4: Estimation and Confidence Intervals',
+  lessons: [
+    { id: 'st-4-3', title: '4.3 Point estimates and confidence intervals', ex: 5 },
+    { id: 'st-4-4', title: '4.4 Bootstrap estimation: learning uncertainty from the data', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
