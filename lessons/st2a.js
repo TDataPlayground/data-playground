@@ -302,12 +302,17 @@ print("{:.4f}".format(p_union))
       title: 'The theoretical probability of a fair die',
       body: `<p>A fair six-sided die has six equally likely faces. Only one face is a six, so the theoretical probability is 1/6, or approximately <b>0.1667</b>.</p>
 <p>Now roll the die 10,000 times in a simulation. The observed frequency will usually be close to 1/6, but it will not be exactly 1/6. The simulation is not proving that the die is fair; we made fairness an assumption when we built the model.</p>`,
-      code: `rng = np.random.default_rng(2026)
-rolls = rng.integers(1, 7, size=10000)
+      code: `import numpy as np
+
+np.random.seed(2026)
+
+rolls = np.random.randint(1, 7, size=10000)
+
+counts = [(rolls == face).sum() for face in range(1, 7)]
 
 print("{:.4f}".format(1 / 6))
 print("{:.4f}".format((rolls == 6).mean()))
-print(np.bincount(rolls, minlength=7)[1:].tolist())
+print(counts)
 `
     },
     {
