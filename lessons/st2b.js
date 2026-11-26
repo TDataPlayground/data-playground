@@ -1,43 +1,39 @@
 LESSONS.push(
 {
-  id: 'st-2-3',
-  track: 'statistics',
-  lang: 'python',
-  packages: ['pandas', 'numpy', 'matplotlib'],
+  id: "st-2-3",
+  track: "statistics",
+  lang: "python",
+  packages: [
+    "pandas",
+    "numpy"
+  ],
   loopGuard: true,
-  files: ['customers', 'orders', 'products', 'payments', 'deliveries', 'order_items'],
+  files: [
+    "orders",
+    "payments"
+  ],
   setup: `import pandas as pd
 import numpy as np
 
-customers = pd.read_csv("customers.csv")
+# Read the order and payment tables.
 orders = pd.read_csv("orders.csv")
-products = pd.read_csv("products.csv")
 payments = pd.read_csv("payments.csv")
-deliveries = pd.read_csv("deliveries.csv")
-order_items = pd.read_csv("order_items.csv")
 
-master = order_items.merge(products[["product_id", "product_name", "category"]], on="product_id", validate="many_to_one")
-master = master.merge(orders[["order_id", "customer_id", "order_date", "order_status"]], on="order_id", validate="many_to_one")
-master = master.merge(customers[["customer_id", "country"]], on="customer_id", validate="many_to_one")
-master["line_total"] = master["quantity"] * master["unit_price"]
-master["order_date"] = pd.to_datetime(master["order_date"], format="%Y-%m-%d")
-master["order_year"] = master["order_date"].dt.year
-
+# Create one row per order with its corresponding payment information.
 orders_pay = orders.merge(payments, on="order_id", validate="one_to_one")
-orders_pay["cash_kept"] = np.where(orders_pay["payment_status"].eq("Paid"), orders_pay["amount"], 0.0)
-has_delivery = orders.merge(
-    deliveries[["delivery_id", "order_id", "delivery_status", "dispatch_date", "delivery_date"]],
-    on="order_id", how="left", validate="one_to_one")
-orders_customers = orders.merge(customers[["customer_id", "country"]], on="customer_id", validate="many_to_one")
 `,
-  preloaded: ['customers', 'orders', 'products', 'payments', 'deliveries', 'order_items', 'master', 'orders_pay', 'has_delivery', 'orders_customers'],
-  title: '2.3 Bayes and the base rate: most alerts are not the rare event',
+  preloaded: [
+    "orders",
+    "payments",
+    "orders_pay"
+  ],
+  title: "2.3 Bayes and the base rate: most alerts are not the rare event",
   tables: [],
-  intro: `A payments vendor sends the CFO a confident proposal: <i>“Our screening system catches 90% of failed payments and incorrectly flags only 5% of healthy payments.”</i> The CFO asks the data team one question: <i>“When the system raises an alert, what is the chance the payment has actually failed?”</i><br><br>The vendor has described the system's behaviour when the true status is already known. The CFO is asking for the reverse: the probability of failure after seeing an alert. Those are not the same probability. Bayes' rule connects them, but it cannot do so without the base rate. This lesson builds the answer from counts first, then derives the rule, then examines the measures used to judge a screening system when the event being detected is rare.`,
+  intro: `TradeFlow's payments team is considering a screening system that would flag transactions for review before a payment failure causes further operational work. A vendor says the system catches 90% of real failures and incorrectly flags 5% of healthy payments. The CFO asks the question that matters to the investigation team: when an alert arrives, how likely is it to be a genuine failure?<br><br>The answer depends on more than the vendor's headline percentages. It also depends on how common payment failure is at TradeFlow before the system raises an alert. In this lesson, you will use the actual TradeFlow payment records to establish that base rate, then combine it with clearly labelled hypothetical screening assumptions. You will derive Bayes' rule, build a confusion matrix and learn which performance measures are useful for a real operational decision.`,
   steps: [
     {
-      type: 'explain',
-      title: 'The base rate comes before the impressive percentage',
+      type: "explain",
+      title: "The base rate comes before the impressive percentage",
       body: `<p>Begin with what is known about TradeFlow's 10,000 historical payments. There are <b>423 Failed</b> payments and <b>9,577 that are not Failed</b>. The observed failure rate is therefore 4.23%.</p>
 <p>This overall rate is called the <b>base rate</b> or <b>prevalence</b> of the event. It is the probability of failure before we know anything about a screening result.</p>
 <p>Now take the vendor's claims as assumptions for a hypothetical screening system:</p>
@@ -54,13 +50,22 @@ orders_customers = orders.merge(customers[["customer_id", "country"]], on="custo
 </table>
 <p>Of the roughly 860 alerts, only about 381 relate to failed payments. The share of alerts that are genuine failures is 380.70 ÷ 859.55 = <b>44.29%</b>. More than half the alerts are false alarms, even though the system catches 90% of real failures.</p>
 <p>The system has not contradicted itself. “Catches 90% of failures” and “44% of alerts are failures” describe different directions through the same table.</p>
-<div class="callout analogy"><b>A small signal in a very large crowd.</b> Imagine searching for a rare item in a warehouse. A detector can find most of the rare items and still produce more false alarms than true alarms if there are vastly more ordinary items than rare ones. The size of the ordinary group matters.</div>`
+<div class="callout analogy"><b>A small failure group inside a much larger payment queue.</b> TradeFlow has many more payments that do not fail than payments that do. Even a screening system that rarely flags a healthy payment can create many false alerts simply because the healthy group is so large. The size of that group matters just as much as the system's error rate.</div>`
     },
     {
-      type: 'try',
-      title: 'Build the screening counts from the real base rate',
+      type: "explain",
+      title: "What the TradeFlow payment data can—and cannot—tell us",
+      body: `<p>The prepared object <code>orders_pay</code> joins the <code>orders</code> and <code>payments</code> tables using <code>order_id</code>. Each row represents one order and its payment record. The join is checked as one-to-one, so the payment status is attached to the correct order without multiplying rows.</p>
+<p>We use <code>orders_pay["payment_status"].eq("Failed")</code> to identify the historical Failed payments. The mean of that Boolean Series is the observed failure rate in the supplied dataset. That is the <b>base rate</b> for the worked example.</p>
+<p>There is an important boundary in the evidence: the TradeFlow CSV files do not contain predictions from an existing payment-risk screening system. They do not record which payments a vendor's model would flag. The 90% sensitivity and 5% false-positive rate used in this lesson are therefore <b>hypothetical assumptions</b> for evaluating a proposed system. We combine those assumptions with TradeFlow's observed failure rate to calculate expected screening results.</p>
+<div class="callout watch"><b>Keep evidence and assumptions separate.</b> A historical failure rate from TradeFlow is observed in the data. A proposed model's sensitivity and false-positive rate must come from a separate validation study; they must not be presented as measurements from these CSV files.</div>`
+    },
+    {
+      type: "try",
+      title: "Build the screening counts from the real base rate",
       body: `<p>Use the failure rate in the actual payment records. The screening system's 90% sensitivity and 5% false positive rate are hypothetical performance assumptions. Do not pretend the TradeFlow data contain historical screening outcomes; they do not.</p>
-<p>The expected true alerts are 380.70, the expected false alerts are 478.85, and the probability that an alert is a real failure is <b>0.4429</b>.</p>`,
+<p>The expected true alerts are 380.70, the expected false alerts are 478.85, and the probability that an alert is a real failure is <b>0.4429</b>.</p><p><b>Read the Python:</b> <code>.eq("Failed")</code> creates a True/False flag for each payment. Its mean is the observed failure rate, stored in <code>p_failed</code>. Subtracting it from 1 gives the share that is not Failed. The expressions <code>p_failed * 0.90</code> and <code>p_healthy * 0.05</code> apply the hypothetical true-positive and false-positive rates to their respective groups. Multiplying by <code>len(orders_pay)</code> converts those probabilities into expected alert counts for the 10,000-payment population. The final division asks what share of all alerts are true alerts.</p>
+<p><code>len(orders_pay)</code> counts the rows in the joined payment table. The counts can be fractional because these are expected counts from applying rates to a population, not observed whole transactions.</p>`,
       code: `failed = orders_pay["payment_status"].eq("Failed")
 p_failed = failed.mean()
 p_healthy = 1 - p_failed
@@ -74,8 +79,8 @@ print("{:.4f}".format(true_alerts / (true_alerts + false_alerts)))
 `
     },
     {
-      type: 'explain',
-      title: 'Bayes’ rule reverses the condition',
+      type: "explain",
+      title: "Bayes’ rule reverses the condition",
       body: `<p>Let F mean “the payment has Failed” and A mean “the screening system raises an Alert”. The vendor gives us P(A | F): the chance of an alert among payments known to have failed. The CFO needs P(F | A): the chance of failure among payments known to have triggered an alert.</p>
 <p>We can derive the answer from the multiplication rule you learned in lesson 2.2:</p>
 <p>P(F and A) = P(F) × P(A | F)</p>
@@ -99,16 +104,22 @@ print("{:.4f}".format(true_alerts / (true_alerts + false_alerts)))
 <div class="callout tip"><b>Use natural frequencies before formulas.</b> “Out of 10,000 payments, about 381 true failures are flagged and about 479 healthy payments are flagged.” That count makes the answer visible. Bayes' rule is the compact mathematical expression of the same reasoning.</div>`
     },
     {
-      id: 'st-2-3-ex1-v2',
-      type: 'exercise',
-      title: 'Your turn: calculate the share of alerts that are real',
+      id: "st-2-3-ex1-v3",
+      type: "exercise",
+      title: "Your turn: calculate the share of alerts that are real",
       body: `<p>Using the observed TradeFlow failure rate and the vendor's hypothetical 90% sensitivity and 5% false positive rate, calculate P(Failed | Alert).</p>
 <p>Print the answer to four decimal places. You should see <code>0.4429</code>.</p>
-<p><b>Think before you type:</b> the alert rate includes both true alerts and false alerts. The numerator contains only true alerts. Do not divide 0.90 by the base rate or treat 0.90 as the answer.</p>`,
-      starter: `# orders_pay is already loaded\n\n# Write your code below\n`,
+<p><b>Think before you type:</b> the alert rate includes both true alerts and false alerts. The numerator contains only true alerts. Do not divide 0.90 by the base rate or treat 0.90 as the answer.</p><p><b>Python connection:</b> first calculate the observed base rate from TradeFlow. Then add the two ways an alert can occur: a failed payment is correctly flagged, or a non-failed payment is incorrectly flagged. The numerator contains only the first route. This is why the denominator is the overall alert probability, not just the sensitivity.</p>`,
+      starter: `# orders_pay is already loaded
+
+# Write your code below
+`,
       hints: [
-        'First calculate p_failed from the payment_status column. Then calculate p_alert as 0.90 * p_failed + 0.05 * (1 - p_failed).',
-        'p_failed = orders_pay["payment_status"].eq("Failed").mean()\np_alert = 0.90 * p_failed + 0.05 * (1 - p_failed)\nprint("{:.4f}".format(0.90 * p_failed / p_alert))\n'
+        "First calculate p_failed from the payment_status column. Then calculate p_alert as 0.90 * p_failed + 0.05 * (1 - p_failed).",
+        `p_failed = orders_pay["payment_status"].eq("Failed").mean()
+p_alert = 0.90 * p_failed + 0.05 * (1 - p_failed)
+print("{:.4f}".format(0.90 * p_failed / p_alert))
+`
       ],
       solution: `p_failed = orders_pay["payment_status"].eq("Failed").mean()
 p_alert = 0.90 * p_failed + 0.05 * (1 - p_failed)
@@ -117,27 +128,27 @@ print("{:.4f}".format(0.90 * p_failed / p_alert))
       ordered: true
     },
     {
-      id: 'st-2-3-c1-v2',
-      type: 'check',
-      title: 'The vendor says the system catches 90% of failed payments. Which probability is that?',
-      body: `<p>Pay attention to what is known before the percentage is calculated.</p>`,
+      id: "st-2-3-c1-v3",
+      type: "check",
+      title: "The vendor says the system catches 90% of failed payments. Which probability is that?",
+      body: "<p>Pay attention to what is known before the percentage is calculated.</p>",
       options: [
-        'P(Failed | Alert): the share of alerts that are genuine failures',
-        'P(Alert | Failed): the share of genuine failures that the system flags',
-        'P(Failed): the overall failure rate in the payment population',
-        'P(Alert): the share of all payments that the system flags'
+        "P(Failed | Alert): the share of alerts that are genuine failures",
+        "P(Alert | Failed): the share of genuine failures that the system flags",
+        "P(Failed): the overall failure rate in the payment population",
+        "P(Alert): the share of all payments that the system flags"
       ],
       answer: 1,
       why: [
-        'That is the quantity the CFO needs. It is approximately 44.29% under the stated assumptions, not 90%.',
-        'Correct. “Catches 90% of failed payments” starts with the failed payments and asks what share are flagged. The condition is Failed.',
-        'The base rate is the observed 4.23% of payments that failed. It is not the screening system\'s sensitivity.',
-        'The alert rate includes both true alerts and false alerts. It is approximately 8.60% under the stated assumptions.'
+        "That is the quantity the CFO needs. It is approximately 44.29% under the stated assumptions, not 90%.",
+        "Correct. “Catches 90% of failed payments” starts with the failed payments and asks what share are flagged. The condition is Failed.",
+        "The base rate is the observed 4.23% of payments that failed. It is not the screening system's sensitivity.",
+        "The alert rate includes both true alerts and false alerts. It is approximately 8.60% under the stated assumptions."
       ]
     },
     {
-      type: 'explain',
-      title: 'The base rate can change the answer dramatically',
+      type: "explain",
+      title: "The base rate can change the answer dramatically",
       body: `<p>Keep the screening system exactly the same: 90% sensitivity and 95% specificity. Now imagine that the event is common rather than rare. Suppose half of all payments truly fail.</p>
 <p>Out of 10,000 payments, 5,000 would fail. The system would raise about 4,500 true alerts. Of the 5,000 healthy payments, it would incorrectly flag 5%, or 250. The alert queue would contain 4,750 alerts, of which 4,500 are genuine. The share of alerts that are genuine would be:</p>
 <p>4,500 ÷ 4,750 = <b>94.74%</b>.</p>
@@ -146,16 +157,22 @@ print("{:.4f}".format(0.90 * p_failed / p_alert))
 <div class="callout work"><b>Before deploying a risk score:</b> estimate prevalence in the actual operating population, test sensitivity and specificity on an appropriate holdout set, and calculate the expected number of true and false alerts at the expected volume. A result from a different country, product or time period may not transfer.</div>`
     },
     {
-      id: 'st-2-3-ex2-v2',
-      type: 'exercise',
-      title: 'Your turn: change the base rate, not the screening system',
+      id: "st-2-3-ex2-v3",
+      type: "exercise",
+      title: "Your turn: change the base rate, not the screening system",
       body: `<p>Keep sensitivity at 0.90 and the false positive rate at 0.05. Change only the base rate to 0.50.</p>
 <p>Calculate P(Failed | Alert) and print it to four decimal places. You should see <code>0.9474</code>.</p>
-<p><b>Think before you type:</b> the alert probability is 0.90 × prevalence plus 0.05 × the share that did not fail. The numerator is 0.90 × prevalence.</p>`,
-      starter: `# Use the stated model assumptions\n\n# Write your code below\n`,
+<p><b>Think before you type:</b> the alert probability is 0.90 × prevalence plus 0.05 × the share that did not fail. The numerator is 0.90 × prevalence.</p><p><b>Python connection:</b> <code>p_failed = 0.50</code> sets a hypothetical prevalence of 50%; it does not overwrite the TradeFlow data. The next line calculates the overall alert rate from the true-alert route and false-alert route. The final line divides true alerts by all alerts.</p>`,
+      starter: `# Use the stated model assumptions
+
+# Write your code below
+`,
       hints: [
-        'Set p_failed = 0.50. Calculate p_alert from the two routes into an alert, then divide the true-alert probability by p_alert.',
-        'p_failed = 0.50\np_alert = 0.90 * p_failed + 0.05 * (1 - p_failed)\nprint("{:.4f}".format(0.90 * p_failed / p_alert))\n'
+        "Set p_failed = 0.50. Calculate p_alert from the two routes into an alert, then divide the true-alert probability by p_alert.",
+        `p_failed = 0.50
+p_alert = 0.90 * p_failed + 0.05 * (1 - p_failed)
+print("{:.4f}".format(0.90 * p_failed / p_alert))
+`
       ],
       solution: `p_failed = 0.50
 p_alert = 0.90 * p_failed + 0.05 * (1 - p_failed)
@@ -164,8 +181,8 @@ print("{:.4f}".format(0.90 * p_failed / p_alert))
       ordered: true
     },
     {
-      type: 'explain',
-      title: 'Read the confusion matrix like an operations report',
+      type: "explain",
+      title: "Read the confusion matrix like an operations report",
       body: `<p>Screening systems and binary classifiers are often assessed with a <b>confusion matrix</b>. Its rows show what really happened; its columns show what the model predicted.</p>
 <table class="mini">
 <tr><th>Actual outcome</th><th>Model flags</th><th>Model does not flag</th></tr>
@@ -196,16 +213,24 @@ print("{:.4f}".format(0.90 * p_failed / p_alert))
 <div class="callout watch"><b>Accuracy can be misleading when the event is rare.</b> A system that never flags anything would be correct for all 9,577 healthy payments, giving 95.77% accuracy. It would also miss every failed payment, giving 0% recall. That is not a useful failure-screening system just because its accuracy number looks high.</div>`
     },
     {
-      id: 'st-2-3-ex3-v2',
-      type: 'exercise',
-      title: 'Your turn: calculate the accuracy of doing nothing',
+      id: "st-2-3-ex3-v3",
+      type: "exercise",
+      title: "Your turn: calculate the accuracy of doing nothing",
       body: `<p>Imagine a useless screening system that never flags a payment. Every payment is predicted to be Not Failed.</p>
 <p>Using the actual <code>orders_pay</code> labels, calculate its accuracy and its recall for Failed payments. Print both to four decimal places. You should see <code>0.9577</code> and <code>0.0000</code>.</p>
-<p><b>Think before you type:</b> it gets every non-failed payment right and every failed payment wrong. Its recall is zero because it catches no failures at all.</p>`,
-      starter: `# orders_pay is already loaded\n\n# Write your code below\n`,
+<p><b>Think before you type:</b> it gets every non-failed payment right and every failed payment wrong. Its recall is zero because it catches no failures at all.</p><p><b>Python connection:</b> <code>~failed</code> is the element-wise NOT of the Boolean failure flag. It marks every non-failed payment. Its mean is the share a system that always predicts Not Failed would classify correctly. We set recall to zero because that system never identifies a failed payment. This exercise shows why accuracy alone is dangerous with a rare event.</p>`,
+      starter: `# orders_pay is already loaded
+
+# Write your code below
+`,
       hints: [
-        'The accuracy is the share that are not Failed. The recall is the share of Failed cases that the system catches; a system that never flags has recall zero.',
-        'failed = orders_pay["payment_status"].eq("Failed")\naccuracy = (~failed).mean()\nrecall = 0.0\nprint("{:.4f}".format(accuracy))\nprint("{:.4f}".format(recall))\n'
+        "The accuracy is the share that are not Failed. The recall is the share of Failed cases that the system catches; a system that never flags has recall zero.",
+        `failed = orders_pay["payment_status"].eq("Failed")
+accuracy = (~failed).mean()
+recall = 0.0
+print("{:.4f}".format(accuracy))
+print("{:.4f}".format(recall))
+`
       ],
       solution: `failed = orders_pay["payment_status"].eq("Failed")
 accuracy = (~failed).mean()
@@ -216,27 +241,27 @@ print("{:.4f}".format(recall))
       ordered: true
     },
     {
-      id: 'st-2-3-c2-v2',
-      type: 'check',
-      title: 'A system that never flags a payment is 95.77% accurate. Why is that not a good reason to deploy it?',
-      body: `<p>Ask what happens to the rare event that the system was built to detect.</p>`,
+      id: "st-2-3-c2-v3",
+      type: "check",
+      title: "A system that never flags a payment is 95.77% accurate. Why is that not a good reason to deploy it?",
+      body: "<p>Ask what happens to the rare event that the system was built to detect.</p>",
       options: [
-        'Accuracy is always the wrong metric, regardless of the problem',
-        'It misses every failed payment, so its recall for the target event is zero',
-        'It must have 95.77% precision because its accuracy is 95.77%',
-        'A model with high accuracy cannot have any false negatives'
+        "Accuracy is always the wrong metric, regardless of the problem",
+        "It misses every failed payment, so its recall for the target event is zero",
+        "It must have 95.77% precision because its accuracy is 95.77%",
+        "A model with high accuracy cannot have any false negatives"
       ],
       answer: 1,
       why: [
-        'Accuracy is useful in some settings. The problem is relying on it alone when one class is much rarer than the other.',
-        'Correct. The system predicts Not Failed for every row. It is correct on the healthy majority but catches none of the failures.',
-        'Precision and accuracy use different denominators. This system produces no positive alerts, so its precision is undefined rather than 95.77%.',
-        'A model can have high accuracy and still miss every instance of a rare class. That is exactly what happens here.'
+        "Accuracy is useful in some settings. The problem is relying on it alone when one class is much rarer than the other.",
+        "Correct. The system predicts Not Failed for every row. It is correct on the healthy majority but catches none of the failures.",
+        "Precision and accuracy use different denominators. This system produces no positive alerts, so its precision is undefined rather than 95.77%.",
+        "A model can have high accuracy and still miss every instance of a rare class. That is exactly what happens here."
       ]
     },
     {
-      type: 'explain',
-      title: 'Choose the metric that matches the operational cost',
+      type: "explain",
+      title: "Choose the metric that matches the operational cost",
       body: `<p>There is no single metric that makes every screening system good. The correct balance depends on what a false alarm and a missed failure cost the business.</p>
 <p>If missing a failed payment is extremely expensive, management may prefer high recall, even if that sends more healthy payments for review. If every alert triggers a costly manual investigation, the team may need higher precision. Specificity helps describe how often healthy payments are left alone. Precision and negative predictive value answer what the alert and non-alert queues contain.</p>
 <p>In machine learning, the decision threshold matters. A model might produce a score between 0 and 1. Lowering the threshold usually flags more records: recall often rises, but false positives may rise too. Raising the threshold usually reduces alerts but can miss more real cases. The best threshold is a business decision informed by validation data and the costs of each error.</p>
@@ -245,9 +270,9 @@ print("{:.4f}".format(recall))
 <div class="callout work"><b>Questions to ask a vendor:</b> What is the base rate in the deployment population? What are sensitivity and specificity on a representative holdout set? How many alerts should we expect at our volume? What are precision and recall at the proposed threshold? What does each type of error cost? How will performance be monitored after launch?</div>`
     },
     {
-      id: 'st-2-3-ex4-v2',
-      type: 'exercise',
-      title: 'Your turn: calculate precision and negative predictive value',
+      id: "st-2-3-ex4-v3",
+      type: "exercise",
+      title: "Your turn: calculate precision and negative predictive value",
       body: `<p>Use the actual failure base rate of 4.23% and the hypothetical model assumptions: 90% sensitivity and 95% specificity.</p>
 <p>Calculate and print:</p>
 <ul>
@@ -255,11 +280,21 @@ print("{:.4f}".format(recall))
 <li>Negative predictive value, or P(Not Failed | No Alert)</li>
 </ul>
 <p>Print both to four decimal places. You should see <code>0.4429</code> and <code>0.9954</code>.</p>
-<p><b>Think before you type:</b> the false positive rate is 1 − specificity, or 0.05. The no-alert probability must include both missed failures and correctly unflagged healthy payments.</p>`,
-      starter: `# Use the observed base rate and stated model assumptions\n\n# Write your code below\n`,
+<p><b>Think before you type:</b> the false positive rate is 1 − specificity, or 0.05. The no-alert probability must include both missed failures and correctly unflagged healthy payments.</p><p><b>Python connection:</b> the four variables are expected proportions for the four confusion-matrix cells: true positives, false positives, false negatives and true negatives. Precision divides true positives by all alerts. Negative predictive value divides true negatives by all non-alerts. Notice that both denominators include two types of outcome.</p>`,
+      starter: `# Use the observed base rate and stated model assumptions
+
+# Write your code below
+`,
       hints: [
-        'Set p_failed from the data. True alerts are 0.90 * p_failed; false alerts are 0.05 * (1 - p_failed). No-alerts combine 0.10 * p_failed and 0.95 * (1 - p_failed).',
-        'p_failed = orders_pay["payment_status"].eq("Failed").mean()\ntp = 0.90 * p_failed\nfp = 0.05 * (1 - p_failed)\nfn = 0.10 * p_failed\ntn = 0.95 * (1 - p_failed)\nprint("{:.4f}".format(tp / (tp + fp)))\nprint("{:.4f}".format(tn / (tn + fn)))\n'
+        "Set p_failed from the data. True alerts are 0.90 * p_failed; false alerts are 0.05 * (1 - p_failed). No-alerts combine 0.10 * p_failed and 0.95 * (1 - p_failed).",
+        `p_failed = orders_pay["payment_status"].eq("Failed").mean()
+tp = 0.90 * p_failed
+fp = 0.05 * (1 - p_failed)
+fn = 0.10 * p_failed
+tn = 0.95 * (1 - p_failed)
+print("{:.4f}".format(tp / (tp + fp)))
+print("{:.4f}".format(tn / (tn + fn)))
+`
       ],
       solution: `p_failed = orders_pay["payment_status"].eq("Failed").mean()
 tp = 0.90 * p_failed
@@ -272,8 +307,8 @@ print("{:.4f}".format(tn / (tn + fn)))
       ordered: true
     },
     {
-      type: 'explain',
-      title: 'A change in prevalence changes precision even when the model does not change',
+      type: "explain",
+      title: "A change in prevalence changes precision even when the model does not change",
       body: `<p>Suppose the same screening system moves from a payment population with a 4.23% failure rate to a new environment where only 1% of payments fail. Its sensitivity and specificity remain 90% and 95%.</p>
 <p>With a 1% base rate, the share of alerts that are genuine failures is:</p>
 <p>(0.90 × 0.01) ÷ [(0.90 × 0.01) + (0.05 × 0.99)] = <b>15.38%</b>.</p>
@@ -282,16 +317,22 @@ print("{:.4f}".format(tn / (tn + fn)))
 <div class="callout watch"><b>Model performance is not one permanent number.</b> Sensitivity and specificity can also change when the population or data process changes. Monitor the model after deployment rather than treating a validation report as a lifetime guarantee.</div>`
     },
     {
-      id: 'st-2-3-ex5-v2',
-      type: 'exercise',
-      title: 'Your turn: estimate precision in a low-prevalence population',
+      id: "st-2-3-ex5-v3",
+      type: "exercise",
+      title: "Your turn: estimate precision in a low-prevalence population",
       body: `<p>Set the failure prevalence to 1%, sensitivity to 90% and false positive rate to 5%. Calculate P(Failed | Alert).</p>
 <p>Print the result to four decimal places. You should see <code>0.1538</code>.</p>
-<p><b>Think before you type:</b> use the same Bayes calculation as before. Only the base rate changes.</p>`,
-      starter: `# Use the stated model assumptions\n\n# Write your code below\n`,
+<p><b>Think before you type:</b> use the same Bayes calculation as before. Only the base rate changes.</p><p><b>Python connection:</b> only the assumed base rate changes from the previous example. Sensitivity and false-positive rate stay fixed. The calculation is repeated unchanged, showing that precision depends on the prevalence of the event in the population where the system is used.</p>`,
+      starter: `# Use the stated model assumptions
+
+# Write your code below
+`,
       hints: [
-        'Set p_failed to 0.01. The alert probability is 0.90 * p_failed + 0.05 * (1 - p_failed).',
-        'p_failed = 0.01\np_alert = 0.90 * p_failed + 0.05 * (1 - p_failed)\nprint("{:.4f}".format(0.90 * p_failed / p_alert))\n'
+        "Set p_failed to 0.01. The alert probability is 0.90 * p_failed + 0.05 * (1 - p_failed).",
+        `p_failed = 0.01
+p_alert = 0.90 * p_failed + 0.05 * (1 - p_failed)
+print("{:.4f}".format(0.90 * p_failed / p_alert))
+`
       ],
       solution: `p_failed = 0.01
 p_alert = 0.90 * p_failed + 0.05 * (1 - p_failed)
@@ -300,27 +341,27 @@ print("{:.4f}".format(0.90 * p_failed / p_alert))
       ordered: true
     },
     {
-      id: 'st-2-3-c3-v2',
-      type: 'check',
-      title: 'The same model is moved to a population where failures are rarer. Why can precision fall?',
-      body: `<p>Think about the number of healthy records available to generate false alerts.</p>`,
+      id: "st-2-3-c3-v3",
+      type: "check",
+      title: "The same model is moved to a population where failures are rarer. Why can precision fall?",
+      body: "<p>Think about the number of healthy records available to generate false alerts.</p>",
       options: [
-        'Sensitivity automatically falls whenever prevalence falls',
-        'The model becomes less accurate because its code changes',
-        'A much larger healthy population can produce many false alerts, so a smaller share of all alerts may be genuine',
-        'Bayes’ rule no longer applies when the event is rare'
+        "Sensitivity automatically falls whenever prevalence falls",
+        "The model becomes less accurate because its code changes",
+        "A much larger healthy population can produce many false alerts, so a smaller share of all alerts may be genuine",
+        "Bayes’ rule no longer applies when the event is rare"
       ],
       answer: 2,
       why: [
-        'Sensitivity is a conditional rate among actual failures. A lower prevalence does not mathematically force sensitivity to change, although real-world performance can drift.',
-        'The model code has not changed in this example. The mix of cases in the population has changed.',
-        'Correct. Even a small false positive rate applied to a very large healthy group can produce many false alerts compared with the rare true failures.',
-        'Bayes’ rule applies to rare events too. Rare events are exactly where base rates are especially important.'
+        "Sensitivity is a conditional rate among actual failures. A lower prevalence does not mathematically force sensitivity to change, although real-world performance can drift.",
+        "The model code has not changed in this example. The mix of cases in the population has changed.",
+        "Correct. Even a small false positive rate applied to a very large healthy group can produce many false alerts compared with the rare true failures.",
+        "Bayes’ rule applies to rare events too. Rare events are exactly where base rates are especially important."
       ]
     },
     {
-      type: 'explain',
-      title: 'What you can do now',
+      type: "explain",
+      title: "What you can do now",
       body: `<p>You can now reverse a conditional probability when the base rate and the screening characteristics are known.</p>
 <ul>
 <li>You can distinguish sensitivity, specificity, false positive rate, precision and negative predictive value.</li>
@@ -336,44 +377,47 @@ print("{:.4f}".format(0.90 * p_failed / p_alert))
   ]
 },
 {
-  id: 'st-2-4',
-  track: 'statistics',
-  lang: 'python',
-  packages: ['pandas', 'numpy', 'matplotlib'],
+  id: "st-2-4",
+  track: "statistics",
+  lang: "python",
+  packages: [
+    "pandas",
+    "numpy"
+  ],
   loopGuard: true,
-  files: ['customers', 'orders', 'products', 'payments', 'deliveries', 'order_items'],
+  files: [
+    "orders",
+    "payments"
+  ],
   setup: `import pandas as pd
 import numpy as np
 
-customers = pd.read_csv("customers.csv")
+# Read the order and payment tables.
 orders = pd.read_csv("orders.csv")
-products = pd.read_csv("products.csv")
 payments = pd.read_csv("payments.csv")
-deliveries = pd.read_csv("deliveries.csv")
-order_items = pd.read_csv("order_items.csv")
 
-master = order_items.merge(products[["product_id", "product_name", "category"]], on="product_id", validate="many_to_one")
-master = master.merge(orders[["order_id", "customer_id", "order_date", "order_status"]], on="order_id", validate="many_to_one")
-master = master.merge(customers[["customer_id", "country"]], on="customer_id", validate="many_to_one")
-master["line_total"] = master["quantity"] * master["unit_price"]
-master["order_date"] = pd.to_datetime(master["order_date"], format="%Y-%m-%d")
-master["order_year"] = master["order_date"].dt.year
-
+# Attach the payment record to each order.
 orders_pay = orders.merge(payments, on="order_id", validate="one_to_one")
-orders_pay["cash_kept"] = np.where(orders_pay["payment_status"].eq("Paid"), orders_pay["amount"], 0.0)
-has_delivery = orders.merge(
-    deliveries[["delivery_id", "order_id", "delivery_status", "dispatch_date", "delivery_date"]],
-    on="order_id", how="left", validate="one_to_one")
-orders_customers = orders.merge(customers[["customer_id", "country"]], on="customer_id", validate="many_to_one")
+
+# Define the amount retained under this lesson's explicit teaching rule.
+orders_pay["cash_kept"] = np.where(
+    orders_pay["payment_status"].eq("Paid"),
+    orders_pay["amount"],
+    0.0
+)
 `,
-  preloaded: ['customers', 'orders', 'products', 'payments', 'deliveries', 'order_items', 'master', 'orders_pay', 'has_delivery', 'orders_customers'],
-  title: '2.4 Expected value: the long-run average of a decision',
+  preloaded: [
+    "orders",
+    "payments",
+    "orders_pay"
+  ],
+  title: "2.4 Expected value: the long-run average of a decision",
   tables: [],
-  intro: `A finance manager is comparing two ways to handle a payment failure. One option is to stop immediately and record no recovery. The other is to attempt a retry, which costs money but may recover the payment. The manager asks: <i>“On average, what is each option worth, and what assumptions would make the retry worthwhile?”</i><br><br>Expected value is the answer to a carefully defined question of that kind. It is a probability-weighted average of the possible outcomes. It does not tell you what will happen to the next individual transaction, and it does not remove risk. In this lesson you will calculate expected values from the TradeFlow records, build a decision from explicit assumptions, and see why a long-run average is not the same thing as a guaranteed result.`,
+  intro: `The finance team at TradeFlow is reviewing what to do when a payment fails. One proposal is to attempt a payment retry. A retry costs money whether it succeeds or not, but a successful retry may recover the amount attached to the failed payment. The finance manager wants a disciplined comparison: what is the average value of the current payment outcomes, under what assumptions is a retry worthwhile, and how much should the team expect individual results to vary?<br><br>In this lesson, you will turn payment outcomes into a numerical random variable, calculate expected value as a probability-weighted average, reconstruct the average from payment-status groups, and calculate a break-even retry success rate. We will also examine why a long-run average is not a promise about the next payment and why expected value alone does not describe risk.`,
   steps: [
     {
-      type: 'explain',
-      title: 'A random variable assigns a number to an uncertain outcome',
+      type: "explain",
+      title: "A random variable assigns a number to an uncertain outcome",
       body: `<p>Probability describes how likely events are. Expected value lets us attach a numerical outcome to those events.</p>
 <p>A <b>random variable</b> is a rule that assigns a number to each possible outcome of a random experiment. The letter X is commonly used for a random variable.</p>
 <p>Imagine selecting one payment at random. Define X as the amount of cash retained under this simple rule:</p>
@@ -386,21 +430,34 @@ orders_customers = orders.merge(customers[["customer_id", "country"]], on="custo
 <div class="callout analogy"><b>One draw, one amount.</b> Put every payment record in a box. Some tickets carry a positive cash-kept amount; the others carry zero under our rule. Drawing one ticket gives one value of X. Drawing many tickets gives a collection of values whose average can be studied.</div>`
     },
     {
-      type: 'try',
-      title: 'Create the cash-kept outcome for each payment',
+      type: "explain",
+      title: "How the payment outcome is prepared for this lesson",
+      body: `<p>This lesson uses <code>orders_pay</code>, the one-row-per-order table that contains payment amount and payment status. The setup creates one additional column called <code>cash_kept</code> using:</p>
+<p><code>orders_pay["cash_kept"] = np.where(orders_pay["payment_status"].eq("Paid"), orders_pay["amount"], 0.0)</code></p>
+<p>Here is how to read it:</p>
+<ol><li><code>orders_pay["payment_status"].eq("Paid")</code> tests each row and produces True for Paid payments and False for every other status.</li>
+<li><code>np.where(condition, value_if_true, value_if_false)</code> applies the rule to the whole column. If the condition is True, it takes the payment amount; otherwise, it assigns 0.0.</li>
+<li>The result is stored in a new DataFrame column named <code>cash_kept</code>.</li></ol>
+<p>This is a <b>teaching definition</b> of one numerical outcome for each payment record. It treats the full recorded amount as retained when status is Paid and zero otherwise. It is not a full accounting definition of revenue, cash collected or profit: it ignores settlement timing, fees, costs, later adjustments and other accounting rules. The dataset's data dictionary also does not specify a currency, so we report neutral amount units.</p>
+<div class="callout watch"><b>Never let a convenient variable name overstate what the data measure.</b> In this lesson, “cash kept” means exactly the rule above and nothing more. A real finance model would first agree the accounting definition with the finance team.</div>`
+    },
+    {
+      type: "try",
+      title: "Create the cash-kept outcome for each payment",
       body: `<p>The setup has already created <code>cash_kept</code>: the recorded amount for Paid transactions and zero for the other statuses. The mean is the average cash-kept value per payment record in this dataset.</p>
-<p>The result is <b>134,139.47 amount units per payment</b>. The data dictionary does not specify a currency, so we will not attach a currency symbol.</p>`,
+<p>The result is <b>134,139.47 amount units per payment</b>. The data dictionary does not specify a currency, so we will not attach a currency symbol.</p><p><b>What Python is doing:</b> the column <code>cash_kept</code> was created in the setup with <code>np.where()</code>. The condition checks whether each payment status is Paid. Paid rows receive their recorded <code>amount</code>; every other row receives zero. <code>.mean()</code> calculates the average value per payment record. <code>.sum()</code> adds the values across all 10,000 records. The mean is the total divided by the number of payment records.</p>
+<p>Do not call this profit. It is the average outcome under our explicit teaching rule.</p>`,
       code: `print("{:.2f}".format(orders_pay["cash_kept"].mean()))
 print("{:.2f}".format(orders_pay["cash_kept"].sum()))
 `
     },
     {
-      type: 'explain',
-      title: 'Expected value is a probability-weighted average',
+      type: "explain",
+      title: "Expected value is a probability-weighted average",
       body: `<p>For a discrete random variable X with possible values x₁, x₂, …, xₙ, expected value is:</p>
 <p><b>E(X) = x₁P(X = x₁) + x₂P(X = x₂) + … + xₙP(X = xₙ).</b></p>
 <p>Each possible value is multiplied by the probability of receiving that value. The products are then added. This is a weighted average: outcomes that occur more often contribute more to the result.</p>
-<p>Consider a simple example. A delivery bonus pays 0 amount units with probability 0.7 and 1,000 amount units with probability 0.3. Its expected value is 0 × 0.7 + 1,000 × 0.3 = 300 amount units. The expected value is not one of the possible payments. Nobody receives 300 on an individual trial. It is the average payoff per trial over many repetitions under the stated model.</p>
+<p>Consider a simplified TradeFlow delivery-partner incentive. A partner earns no bonus with probability 0.7 and a 1,000 amount-unit bonus with probability 0.3, based on whether the agreed service target is met. The expected bonus is 0 × 0.7 + 1,000 × 0.3 = 300 amount units. The expected value is not one of the possible bonuses. A partner receives either zero or 1,000 on an individual review period; 300 is the average bonus per period over many repetitions under the stated model.</p>
 <p>For the TradeFlow cash-kept variable, each payment status is a group of outcomes. The simplified cash-kept value is zero for three statuses and equal to the recorded payment amount for Paid. We can calculate the mean directly from the 10,000 rows, or reconstruct it by weighting the conditional mean in each status group by that status's probability.</p>
 <table class="mini">
 <tr><th>Payment status</th><th>Probability</th><th>Cash kept under our rule</th></tr>
@@ -409,28 +466,32 @@ print("{:.2f}".format(orders_pay["cash_kept"].sum()))
 <tr><td>Refunded</td><td>0.0512</td><td>0</td></tr>
 <tr><td>Failed</td><td>0.0423</td><td>0</td></tr>
 </table>
-<p>Because amount varies within the Paid group, the contribution from Paid is its probability multiplied by its average amount among Paid payments. The other statuses contribute zero under this definition. This is exactly the logic of the weighted-average formula.</p>
+<p>Because amount varies within the Paid group, the contribution from Paid is its probability multiplied by its average amount among Paid payments. The other three status groups contribute zero under this definition. This is exactly the logic of the weighted-average formula.</p>
 <div class="callout watch"><b>Expected value is attached to a defined outcome.</b> Change what counts as “cash kept” and the expected value changes. A pending payment is not automatically cash received simply because it may clear later. State the rule before reporting the number.</div>`
     },
     {
-      id: 'st-2-4-ex1-v2',
-      type: 'exercise',
-      title: 'Your turn: calculate the average cash kept per payment',
+      id: "st-2-4-ex1-v3",
+      type: "exercise",
+      title: "Your turn: calculate the average cash kept per payment",
       body: `<p>Use the prepared <code>cash_kept</code> column to calculate the mean amount retained per payment record. Print it to two decimal places.</p>
 <p>You should see <code>134139.47</code>.</p>
-<p><b>Think before you type:</b> the expected value of the empirical distribution is the arithmetic mean of its observed outcomes. Do not average only the Paid rows; the experiment selects from all 10,000 payment records.</p>`,
-      starter: `# orders_pay["cash_kept"] is already prepared\n\n# Write your code below\n`,
+<p><b>Think before you type:</b> the expected value of the empirical distribution is the arithmetic mean of its observed outcomes. Do not average only the Paid rows; the experiment selects from all 10,000 payment records.</p><p><b>Python connection:</b> <code>.mean()</code> adds the 10,000 values in <code>cash_kept</code> and divides by 10,000. Because zero-valued non-Paid records remain in the column, this is the average across all payment records—not the average amount among Paid payments only.</p>`,
+      starter: `# orders_pay["cash_kept"] is already prepared
+
+# Write your code below
+`,
       hints: [
-        'Take the mean of orders_pay["cash_kept"] and format it to two decimal places.',
-        'print("{:.2f}".format(orders_pay["cash_kept"].mean()))\n'
+        "Take the mean of orders_pay[\"cash_kept\"] and format it to two decimal places.",
+        `print("{:.2f}".format(orders_pay["cash_kept"].mean()))
+`
       ],
       solution: `print("{:.2f}".format(orders_pay["cash_kept"].mean()))
 `,
       ordered: true
     },
     {
-      type: 'explain',
-      title: 'Reconstruct the mean from the outcome groups',
+      type: "explain",
+      title: "Reconstruct the mean from the outcome groups",
       body: `<p>The same expected value can be assembled from groups. This is useful when the outcome is described by categories rather than supplied as one ready-made numerical column.</p>
 <p>For each payment status, calculate two things:</p>
 <ol>
@@ -442,9 +503,15 @@ print("{:.2f}".format(orders_pay["cash_kept"].sum()))
 <p>It also exposes a common mistake: calculating the average amount among successful payments and reporting it as the expected amount per payment. The first number answers “how much is retained when a payment is Paid?” The second answers “how much is retained per payment selected from the whole population?” They use different denominators.</p>`
     },
     {
-      type: 'try',
-      title: 'Calculate the group probabilities and weighted contributions',
-      body: `<p>The code groups payments by status, calculates the probability of each status and the mean cash-kept value in that group, then multiplies and sums the contributions. It should match the direct column mean.</p>`,
+      type: "try",
+      title: "Calculate the group probabilities and weighted contributions",
+      body: `<p>The code groups payments by status, calculates the probability of each status and the mean cash-kept value in that group, then multiplies and sums the contributions. It should match the direct column mean.</p><p><b>Read the grouping operations:</b></p>
+<ol><li><code>groupby("payment_status")</code> splits the payment rows into separate groups, one for each status. Selecting <code>["cash_kept"]</code> means we summarise only that numerical column.</li>
+<li><code>grouped.size()</code> counts rows in each status group. Dividing by <code>len(orders_pay)</code>, the total number of payments, converts each count into a probability weight.</li>
+<li><code>grouped.mean()</code> calculates the average cash-kept value within each status group. These are conditional averages.</li>
+<li>Multiplying the probability Series by the mean Series matches values by their status labels. Summing the products gives the weighted overall average.</li>
+<li><code>.round(4).to_dict()</code> rounds the displayed group probabilities and converts them to a regular Python dictionary for readable output.</li></ol>
+<p>This is not a different definition of expected value. It reconstructs the same overall mean by weighting each group's mean by the share of records in that group.</p>`,
       code: `grouped = orders_pay.groupby("payment_status")["cash_kept"]
 probabilities = grouped.size() / len(orders_pay)
 conditional_means = grouped.mean()
@@ -455,16 +522,24 @@ print(probabilities.round(4).to_dict())
 `
     },
     {
-      id: 'st-2-4-ex2-v2',
-      type: 'exercise',
-      title: 'Your turn: calculate expected cash kept from the status groups',
+      id: "st-2-4-ex2-v3",
+      type: "exercise",
+      title: "Your turn: calculate expected cash kept from the status groups",
       body: `<p>Use <code>groupby</code> to calculate the probability of each payment status and the mean cash-kept value within that status. Multiply each probability by its group mean, then add the contributions.</p>
 <p>Print the weighted expected value to two decimal places. It should be <code>134139.47</code>.</p>
-<p><b>Think before you type:</b> group size divided by the total number of payments gives the probability weight. The mean of cash_kept within each group gives the conditional mean. Multiply the two Series and sum.</p>`,
-      starter: `# orders_pay is already loaded\n\n# Write your code below\n`,
+<p><b>Think before you type:</b> group size divided by the total number of payments gives the probability weight. The mean of cash_kept within each group gives the conditional mean. Multiply the two Series and sum.</p><p><b>Python connection:</b> <code>groupby()</code> creates one group per payment status, <code>size()</code> counts the records in each group, and <code>mean()</code> calculates the group average. Divide each group count by the full record count to get the probability weight. Multiply weight by group mean, then add the contributions.</p>`,
+      starter: `# orders_pay is already loaded
+
+# Write your code below
+`,
       hints: [
-        'Use grouped = orders_pay.groupby("payment_status")["cash_kept"]. Then create probabilities with grouped.size() / len(orders_pay) and group means with grouped.mean().',
-        'grouped = orders_pay.groupby("payment_status")["cash_kept"]\nprobabilities = grouped.size() / len(orders_pay)\nconditional_means = grouped.mean()\nexpected_value = (probabilities * conditional_means).sum()\nprint("{:.2f}".format(expected_value))\n'
+        "Use grouped = orders_pay.groupby(\"payment_status\")[\"cash_kept\"]. Then create probabilities with grouped.size() / len(orders_pay) and group means with grouped.mean().",
+        `grouped = orders_pay.groupby("payment_status")["cash_kept"]
+probabilities = grouped.size() / len(orders_pay)
+conditional_means = grouped.mean()
+expected_value = (probabilities * conditional_means).sum()
+print("{:.2f}".format(expected_value))
+`
       ],
       solution: `grouped = orders_pay.groupby("payment_status")["cash_kept"]
 probabilities = grouped.size() / len(orders_pay)
@@ -475,27 +550,27 @@ print("{:.2f}".format(expected_value))
       ordered: true
     },
     {
-      id: 'st-2-4-c1-v2',
-      type: 'check',
-      title: 'The expected cash-kept value is 134,139.47 amount units. What is the correct interpretation?',
-      body: `<p>Expected value is an average over repeated selections, not a promise about the next record.</p>`,
+      id: "st-2-4-c1-v3",
+      type: "check",
+      title: "The expected cash-kept value is 134,139.47 amount units. What is the correct interpretation?",
+      body: "<p>Expected value is an average over repeated selections, not a promise about the next record.</p>",
       options: [
-        'Every payment record retains exactly 134,139.47 amount units',
-        'The next randomly selected payment is guaranteed to retain 134,139.47 amount units',
-        'Across many selections from the same defined population, the average cash-kept value per payment is expected to be close to 134,139.47',
-        'The company makes 134,139.47 amount units of profit on every order'
+        "Every payment record retains exactly 134,139.47 amount units",
+        "The next randomly selected payment is guaranteed to retain 134,139.47 amount units",
+        "Across many selections from the same defined population, the average cash-kept value per payment is expected to be close to 134,139.47",
+        "The company makes 134,139.47 amount units of profit on every order"
       ],
       answer: 2,
       why: [
-        'Individual records vary. Some retain a positive amount; others have zero under our simplified definition.',
-        'Expected value does not predict the exact result of one trial. A single payment can be far above or below the average.',
-        'Correct. It is the probability-weighted long-run average under the specified experiment and cash-kept rule.',
-        'The dataset does not define profit, and the expected value is not a per-order guarantee. Costs and accounting treatment are outside this simplified variable.'
+        "Individual records vary. Some retain a positive amount; others have zero under our simplified definition.",
+        "Expected value does not predict the exact result of one trial. A single payment can be far above or below the average.",
+        "Correct. It is the probability-weighted long-run average under the specified experiment and cash-kept rule.",
+        "The dataset does not define profit, and the expected value is not a per-order guarantee. Costs and accounting treatment are outside this simplified variable."
       ]
     },
     {
-      type: 'explain',
-      title: 'Use expected value to compare a decision',
+      type: "explain",
+      title: "Use expected value to compare a decision",
       body: `<p>Expected value becomes useful for decisions when we define the possible payoffs, their probabilities and the costs that go with each outcome.</p>
 <p>Consider a hypothetical retry policy for failed payments. The TradeFlow records show that the average amount attached to a Failed payment is about <b>156,665.86 amount units</b>. The supplied data do not tell us whether a retry would succeed, so we must state an assumption rather than invent a measured success rate.</p>
 <p>Suppose a proposed retry process has these assumptions:</p>
@@ -516,16 +591,23 @@ print("{:.2f}".format(expected_value))
 <div class="callout watch"><b>Separate observed inputs from assumed inputs.</b> The average amount on failed payments comes from TradeFlow. The retry success probability and cost are hypothetical. A sound analyst labels each clearly so that a scenario is never mistaken for measured performance.</div>`
     },
     {
-      id: 'st-2-4-ex3-v2',
-      type: 'exercise',
-      title: 'Your turn: calculate the expected net value of a retry',
+      id: "st-2-4-ex3-v3",
+      type: "exercise",
+      title: "Your turn: calculate the expected net value of a retry",
       body: `<p>Use the actual average payment amount among Failed payments. Under the stated hypothetical policy, a retry succeeds with probability 0.40 and costs 8,000 amount units per attempt.</p>
 <p>Calculate the expected net value: success probability × average failed amount − retry cost. Print the result to two decimal places. You should see <code>54666.34</code>.</p>
-<p><b>Think before you type:</b> the cost is paid whether the retry succeeds or fails, so subtract it once from the expected recovery. Do not multiply the cost by the success probability.</p>`,
-      starter: `# orders_pay is already loaded\n\n# Write your code below\n`,
+<p><b>Think before you type:</b> the cost is paid whether the retry succeeds or fails, so subtract it once from the expected recovery. Do not multiply the cost by the success probability.</p><p><b>Python connection:</b> <code>.loc[row_condition, "amount"]</code> selects the amount column only for rows whose payment status is Failed. <code>.mean()</code> calculates the average amount within that group. The decision formula then multiplies that recovery amount by the assumed retry success probability and subtracts the cost incurred on every attempt.</p>
+<p>The 40% success probability and 8,000 cost are scenario assumptions, not measurements in the TradeFlow CSV files.</p>`,
+      starter: `# orders_pay is already loaded
+
+# Write your code below
+`,
       hints: [
-        'Filter amount to Failed payments and take its mean. Multiply by 0.40, then subtract 8000.',
-        'failed_amount = orders_pay.loc[orders_pay["payment_status"].eq("Failed"), "amount"].mean()\nexpected_net = 0.40 * failed_amount - 8000\nprint("{:.2f}".format(expected_net))\n'
+        "Filter amount to Failed payments and take its mean. Multiply by 0.40, then subtract 8000.",
+        `failed_amount = orders_pay.loc[orders_pay["payment_status"].eq("Failed"), "amount"].mean()
+expected_net = 0.40 * failed_amount - 8000
+print("{:.2f}".format(expected_net))
+`
       ],
       solution: `failed_amount = orders_pay.loc[orders_pay["payment_status"].eq("Failed"), "amount"].mean()
 expected_net = 0.40 * failed_amount - 8000
@@ -534,8 +616,8 @@ print("{:.2f}".format(expected_net))
       ordered: true
     },
     {
-      type: 'explain',
-      title: 'Find the break-even probability before recommending the retry',
+      type: "explain",
+      title: "Find the break-even probability before recommending the retry",
       body: `<p>The previous example used a 40% retry success probability. What success rate would make the policy break even?</p>
 <p>Set expected net value equal to zero:</p>
 <p>p × average recovery − retry cost = 0.</p>
@@ -546,16 +628,22 @@ print("{:.2f}".format(expected_net))
 <div class="callout work"><b>At work:</b> break-even calculations help a team decide what evidence it needs. If the policy only works when 70% of retries succeed, but comparable operations achieve 10%, the idea is unlikely to be viable. If it works above 5%, even a modest success rate may justify a measured pilot.</div>`
     },
     {
-      id: 'st-2-4-ex4-v2',
-      type: 'exercise',
-      title: 'Your turn: find the break-even retry success rate',
+      id: "st-2-4-ex4-v3",
+      type: "exercise",
+      title: "Your turn: find the break-even retry success rate",
       body: `<p>Calculate the break-even success probability using the actual average amount for Failed payments and the hypothetical retry cost of 8,000 amount units.</p>
 <p>Print the probability to four decimal places. You should see <code>0.0511</code>.</p>
-<p><b>Think before you type:</b> break-even occurs when expected recovery equals retry cost. Divide the cost by the average amount that would be recovered on success.</p>`,
-      starter: `# orders_pay is already loaded\n\n# Write your code below\n`,
+<p><b>Think before you type:</b> break-even occurs when expected recovery equals retry cost. Divide the cost by the average amount that would be recovered on success.</p><p><b>Python connection:</b> the same <code>.loc[]</code> filter finds the historical Failed-payment amounts. Dividing the fixed retry cost by the average amount recovered on success gives the success probability at which expected recovery exactly offsets the retry cost.</p>`,
+      starter: `# orders_pay is already loaded
+
+# Write your code below
+`,
       hints: [
-        'Calculate the mean amount among Failed payments, then divide 8000 by that mean.',
-        'failed_amount = orders_pay.loc[orders_pay["payment_status"].eq("Failed"), "amount"].mean()\nbreak_even = 8000 / failed_amount\nprint("{:.4f}".format(break_even))\n'
+        "Calculate the mean amount among Failed payments, then divide 8000 by that mean.",
+        `failed_amount = orders_pay.loc[orders_pay["payment_status"].eq("Failed"), "amount"].mean()
+break_even = 8000 / failed_amount
+print("{:.4f}".format(break_even))
+`
       ],
       solution: `failed_amount = orders_pay.loc[orders_pay["payment_status"].eq("Failed"), "amount"].mean()
 break_even = 8000 / failed_amount
@@ -564,8 +652,8 @@ print("{:.4f}".format(break_even))
       ordered: true
     },
     {
-      type: 'explain',
-      title: 'The law of large numbers: why the average settles down',
+      type: "explain",
+      title: "The law of large numbers: why the average settles down",
       body: `<p>Expected value is a long-run average. The <b>law of large numbers</b> explains why sample averages tend to get closer to the expected value as the number of independent, identically distributed observations grows, provided the expected value exists.</p>
 <p>Imagine drawing payment records at random, with replacement, from the same population. A sample of 20 records may contain an unusually large payment or several zero cash-kept outcomes. Its average can be far from 134,139.47. A sample of 2,000 records is less easily dominated by a handful of unusual outcomes, so its average will usually be closer.</p>
 <p>There are two important qualifications:</p>
@@ -573,14 +661,15 @@ print("{:.4f}".format(break_even))
 <li><b>It is a tendency, not a guarantee for every sample size.</b> A sample of 2,000 can be farther from the expected value than a particular sample of 200. The result does not improve in a perfectly straight line.</li>
 <li><b>The process must remain comparable.</b> If payment methods, customer behaviour or settlement rules change, repeated samples from the future may no longer come from the same distribution as the historical data.</li>
 </ul>
-<p>The law of large numbers does not say that a short-run loss must be followed by a gain. It does not make an individual outcome predictable. It describes what happens to averages across many repetitions of a stable process.</p>
-<div class="callout watch"><b>Do not use the law of large numbers as a gambler's fallacy.</b> If a fair coin produces five Heads in a row, the next flip is still 50% Heads. The coin does not owe you Tails. Long-run balance is not a force that corrects the next result.</div>`
+<p>The law of large numbers does not say that a short-run run of unusually high or low payment outcomes must be followed by an offsetting result. It does not make the next individual payment predictable. It describes what happens to averages across many repetitions of a stable process.</p>
+<div class="callout watch"><b>Do not expect the process to “correct” itself.</b> If several consecutive TradeFlow orders are routed to Group A, that does not make Group B more likely on the next independent assignment. Under a 50/50 allocation rule, the next order still has a 50% chance of going to either group. Long-run balance is not a force that corrects the next result.</div>`
     },
     {
-      type: 'try',
-      title: 'Compare a small and a large sample',
+      type: "try",
+      title: "Compare a small and a large sample",
       body: `<p>We draw payment outcomes from the empirical cash-kept column with replacement. A fixed random seed makes this demonstration repeatable.</p>
-<p>The sample average for 20 records is noticeably different from the full-data mean. The average for 2,000 records is much closer in this run. A different seed may produce a different pattern; the lesson is about the general tendency, not a guarantee about every draw.</p>`,
+<p>The sample average for 20 records is noticeably different from the full-data mean. The average for 2,000 records is much closer in this run. A different seed may produce a different pattern; the lesson is about the general tendency, not a guarantee about every draw.</p><p><b>Understand each NumPy instruction:</b> <code>.to_numpy()</code> converts the Pandas Series into a NumPy array of numerical values. <code>np.random.default_rng(26)</code> creates a random-number generator with a fixed seed so the example is reproducible. <code>rng.choice(values, size=20, replace=True)</code> draws 20 values from the array; <code>replace=True</code> means a value can be selected again on another draw. We repeat this for 200 and 2,000 draws.</p>
+<p>The mean of each sample is a sample average. The full-column mean is the reference average for the empirical TradeFlow payment population. Larger samples tend to produce more stable averages, but no individual sample is guaranteed to be closer than every smaller sample.</p>`,
       code: `values = orders_pay["cash_kept"].to_numpy()
 rng = np.random.default_rng(26)
 
@@ -595,9 +684,9 @@ print("{:.2f}".format(large.mean()))
 `
     },
     {
-      id: 'st-2-4-ex5-v2',
-      type: 'exercise',
-      title: 'Your turn: simulate the long-run average',
+      id: "st-2-4-ex5-v3",
+      type: "exercise",
+      title: "Your turn: simulate the long-run average",
       body: `<p>Repeat the sampling experiment with random seed 26. Draw samples with replacement from <code>orders_pay["cash_kept"]</code>, with sizes 20, 200 and 2,000.</p>
 <p>Print the mean of each sample, in that order, to two decimal places. You should see:</p>
 <ul>
@@ -605,11 +694,19 @@ print("{:.2f}".format(large.mean()))
 <li><code>135698.04</code></li>
 <li><code>133978.55</code></li>
 </ul>
-<p><b>Think before you type:</b> make one generator and use it for the three draws in order. Reinitialising the generator before each sample changes the sequence.</p>`,
-      starter: `import numpy as np\n\n# Write your code below\n`,
+<p><b>Think before you type:</b> make one generator and use it for the three draws in order. Reinitialising the generator before each sample changes the sequence.</p><p><b>Python connection:</b> <code>.to_numpy()</code> converts the payment outcomes into an array. One generator is created with seed 26 and reused for all three draws. The loop visits the sample sizes 20, 200 and 2,000. On each pass, <code>choice()</code> draws that many observations with replacement, and <code>sample.mean()</code> calculates their average. Reusing one generator matters because it advances through one reproducible sequence of random draws.</p>`,
+      starter: `import numpy as np
+
+# Write your code below
+`,
       hints: [
-        'Convert cash_kept to a NumPy array, create default_rng(26), and call choice three times with replace=True.',
-        'values = orders_pay["cash_kept"].to_numpy()\nrng = np.random.default_rng(26)\nfor size in [20, 200, 2000]:\n    sample = rng.choice(values, size=size, replace=True)\n    print("{:.2f}".format(sample.mean()))\n'
+        "Convert cash_kept to a NumPy array, create default_rng(26), and call choice three times with replace=True.",
+        `values = orders_pay["cash_kept"].to_numpy()
+rng = np.random.default_rng(26)
+for size in [20, 200, 2000]:
+    sample = rng.choice(values, size=size, replace=True)
+    print("{:.2f}".format(sample.mean()))
+`
       ],
       solution: `values = orders_pay["cash_kept"].to_numpy()
 rng = np.random.default_rng(26)
@@ -620,62 +717,62 @@ for size in [20, 200, 2000]:
       ordered: true
     },
     {
-      id: 'st-2-4-c2-v2',
-      type: 'check',
-      title: 'A sample of 20 payments has an average cash-kept value far below the expected value. Does that prove the expected value is wrong?',
-      body: `<p>Think about how much variation is possible in a small sample and what the law of large numbers actually says.</p>`,
+      id: "st-2-4-c2-v3",
+      type: "check",
+      title: "A sample of 20 payments has an average cash-kept value far below the expected value. Does that prove the expected value is wrong?",
+      body: "<p>Think about how much variation is possible in a small sample and what the law of large numbers actually says.</p>",
       options: [
-        'Yes. Every sample average must equal the expected value exactly',
-        'No. A small sample can differ substantially; the law of large numbers describes the long-run behaviour of averages, not a guarantee for one sample',
-        'Yes. A low sample average means the next sample must be high to compensate',
-        'No. Expected value is only valid for samples larger than 2,000'
+        "Yes. Every sample average must equal the expected value exactly",
+        "No. A small sample can differ substantially; the law of large numbers describes the long-run behaviour of averages, not a guarantee for one sample",
+        "Yes. A low sample average means the next sample must be high to compensate",
+        "No. Expected value is only valid for samples larger than 2,000"
       ],
       answer: 1,
       why: [
-        'Individual sample averages vary. Exact equality is not expected except by coincidence.',
-        'Correct. A sample of 20 can be unrepresentative. Larger repeated samples tend to give more stable averages under a stable sampling process.',
-        'That is the gambler’s fallacy. The next sample does not owe the previous sample a correction.',
-        'There is no universal minimum sample size for expected value. It is defined by the probability distribution; sample size affects how precisely we estimate it.'
+        "Individual sample averages vary. Exact equality is not expected except by coincidence.",
+        "Correct. A sample of 20 can be unrepresentative. Larger repeated samples tend to give more stable averages under a stable sampling process.",
+        "That is the gambler’s fallacy. The next sample does not owe the previous sample a correction.",
+        "There is no universal minimum sample size for expected value. It is defined by the probability distribution; sample size affects how precisely we estimate it."
       ]
     },
     {
-      type: 'explain',
-      title: 'Two decisions can have the same expected value and very different risk',
-      body: `<p>Expected value is important, but it does not describe the entire distribution of outcomes. Consider two hypothetical projects:</p>
+      type: "explain",
+      title: "Two decisions can have the same expected value and very different risk",
+      body: `<p>Expected value is important, but it does not describe the entire distribution of outcomes. Consider two hypothetical ways TradeFlow could structure a performance bonus for a delivery partner:</p>
 <table class="mini">
-<tr><th>Project</th><th>Possible outcome</th><th>Probability</th></tr>
-<tr><td><b>A</b></td><td>Receive 100 amount units</td><td>1.00</td></tr>
-<tr><td><b>B</b></td><td>Receive 0 amount units</td><td>0.50</td></tr>
-<tr><td><b>B</b></td><td>Receive 200 amount units</td><td>0.50</td></tr>
+<tr><th>Contract option</th><th>Possible bonus outcome</th><th>Probability</th></tr>
+<tr><td><b>Fixed option</b></td><td>Receive 100 amount units</td><td>1.00</td></tr>
+<tr><td><b>Variable option</b></td><td>Receive 0 amount units</td><td>0.50</td></tr>
+<tr><td><b>Variable option</b></td><td>Receive 200 amount units</td><td>0.50</td></tr>
 </table>
-<p>Both have expected value 100. Project A always pays 100. Project B has a 50% chance of paying nothing and a 50% chance of paying 200. The average is identical, but the uncertainty is not.</p>
-<p>A risk-neutral decision-maker comparing these isolated payoffs may be indifferent on expected value alone. A business with a strict cash requirement, limited reserves or a penalty for falling below a target may prefer the certain project. Another business may accept the variable project because it has the capacity to absorb the downside.</p>
+<p>Both contract options have an expected bonus of 100 amount units per review period. The fixed option always pays 100. The variable option has a 50% chance of paying nothing and a 50% chance of paying 200. The average is identical, but the uncertainty is not.</p>
+<p>A risk-neutral decision-maker comparing only these isolated bonuses may be indifferent on expected value alone. A delivery partner that relies on a predictable payment to cover operating costs may prefer the fixed option. A partner able to absorb the downside may accept the variable option because it also offers a higher possible bonus.</p>
 <p>Expected value is therefore a starting point for decision-making, not a complete decision rule. Analysts should also examine spread, downside risk, timing, constraints and the consequences of extreme outcomes. You will study how probability distributions describe that spread in the next module.</p>
 <p>One final distinction: expected value is <b>linear</b>. If X and Y are random outcomes, E(X + Y) = E(X) + E(Y), even when they are dependent, provided the expectations exist. But the variability of X + Y depends on how X and Y move together. That is one reason why knowing only the expected value is not enough for portfolio, inventory or operational risk decisions.</p>
 <div class="callout work"><b>At work:</b> report the expected payoff with the assumptions that produced it, then add a description of the range and downside. A decision brief that shows only the average hides the outcomes management may care about most.</div>`
     },
     {
-      id: 'st-2-4-c3-v2',
-      type: 'check',
-      title: 'Two projects both have an expected value of 100. One always pays 100; the other pays 0 or 200 with equal probability. What can you conclude?',
-      body: `<p>The expected values are equal, but the possible outcomes are not.</p>`,
+      id: "st-2-4-c3-v3",
+      type: "check",
+      title: "Two TradeFlow delivery-partner contracts have the same expected bonus. One always pays 100; the other pays 0 or 200 with equal probability. What can you conclude?",
+      body: "<p>The expected values are equal, but the possible outcomes are not.</p>",
       options: [
-        'The projects have identical risk because their expected values match',
-        'The variable project must be better because it can pay 200',
-        'They have the same expected value but different variability, so the decision may depend on risk tolerance and constraints',
-        'Expected value cannot be used when more than one outcome is possible'
+        "The contracts have identical risk because their expected values match",
+        "The variable contract must be better because it can pay 200",
+        "They have the same expected value but different variability, so the decision may depend on the delivery partner's risk tolerance and operating constraints",
+        "Expected value cannot be used when a delivery bonus has more than one possible outcome"
       ],
       answer: 2,
       why: [
-        'Equal averages do not imply equal distributions. One outcome is certain; the other is variable.',
-        'The possibility of a higher payoff does not remove the possibility of receiving zero. Both outcomes matter.',
-        'Correct. Expected value summarises the long-run average, while risk depends on how outcomes are spread and on the cost of downside outcomes.',
-        'Expected value is specifically designed to summarise uncertain outcomes with probabilities.'
+        "Equal averages do not imply equal distributions. One outcome is certain; the other is variable.",
+        "The possibility of a higher payoff does not remove the possibility of receiving zero. Both outcomes matter.",
+        "Correct. Expected value summarises the long-run average, while risk depends on how outcomes are spread and on the cost of downside outcomes.",
+        "Expected value is specifically designed to summarise uncertain outcomes with probabilities."
       ]
     },
     {
-      type: 'explain',
-      title: 'Module 2 complete: what you can now do with probability',
+      type: "explain",
+      title: "Module 2 complete: what you can now do with probability",
       body: `<p>You have built the four foundations of probability-based analysis:</p>
 <ul>
 <li><b>2.1 Events and probability rules:</b> define the experiment, count events, calculate complements and combine events without double-counting.</li>
