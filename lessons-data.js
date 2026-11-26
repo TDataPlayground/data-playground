@@ -1243,6 +1243,30 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'st2',
+  file: 'lessons/st2a.js',
+  v: 1,
+  track: 'statistics',
+  title: 'Module 2: Probability',
+  lessons: [
+    { id: 'st-2-1', title: '2.1 Probability from counts: events, complements and addition', ex: 5 },
+    { id: 'st-2-2', title: '2.2 Conditional probability: given changes the question', ex: 5 }
+  ]
+});
+
+MODULES.push({
+  id: 'st2-b',
+  file: 'lessons/st2b.js',
+  v: 1,
+  track: 'statistics',
+  title: 'Module 2: Probability',
+  lessons: [
+    { id: 'st-2-3', title: '2.3 Bayes and the base rate: most alerts are not the rare event', ex: 5 },
+    { id: 'st-2-4', title: '2.4 Expected value: the long-run average of a decision', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
