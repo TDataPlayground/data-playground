@@ -514,17 +514,43 @@ print(round(boot_lower, 3), "to", round(boot_upper, 3), "days")`
       title: 'Compare the two intervals for the same sample',
       body: `<p>Calculate a 95% normal-approximation interval for the mean of <code>original_sample</code>, then compare it with the bootstrap percentile interval.</p>
 <p>Both intervals estimate the same population mean from the same original sample. They differ in how they approximate uncertainty.</p>`,
-      code: `x_bar = original_sample.mean()
+      code: `
+import numpy as np
+
+# Prepare the original delivery-time sample
+original_sample = np.asarray(transit, dtype=float)
+original_sample = original_sample[np.isfinite(original_sample)]
+
+# Calculate the sample mean and standard error
+x_bar = original_sample.mean()
 s = original_sample.std(ddof=1)
 se = s / np.sqrt(len(original_sample))
 
+# Calculate the normal-approximation confidence interval
 normal_lower = x_bar - 1.96 * se
 normal_upper = x_bar + 1.96 * se
 
-boot_lower, boot_upper = np.quantile(boot_means, [0.025, 0.975])
+# Generate 2,000 bootstrap samples
+rng = np.random.default_rng(4204)
+
+boot_samples = rng.choice(
+    original_sample,
+    size=(2000, len(original_sample)),
+    replace=True
+)
+
+# Calculate the mean of each bootstrap sample
+boot_means = boot_samples.mean(axis=1)
+
+# Calculate the 95% bootstrap confidence interval
+boot_lower, boot_upper = np.quantile(
+    boot_means,
+    [0.025, 0.975]
+)
 
 print("Normal interval:", (round(normal_lower, 3), round(normal_upper, 3)))
-print("Bootstrap interval:", (round(boot_lower, 3), round(boot_upper, 3)))`
+print("Bootstrap interval:", (round(boot_lower, 3), round(boot_upper, 3)))
+`
     },
     {
       id: 'st-4-4-ex1',
