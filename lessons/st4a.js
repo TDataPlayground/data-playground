@@ -368,7 +368,25 @@ print("SD of simulated means:", round(sample_means.std(ddof=1), 3))`
       body: `<p>Plot the distribution of the 2,000 sample means. Compare its shape with the distribution of individual delivery durations.</p>
 <p>The two histograms describe different quantities. The first shows individual deliveries; the second shows averages of 100 deliveries. You should see that the sample means are more concentrated around the population mean.</p>
 <p><b>Python connection:</b> <code>plt.hist()</code> groups numeric values into bins and displays their frequencies. <code>bins=25</code> requests 25 intervals. <code>alpha</code> controls transparency, and <code>density=True</code> scales the histogram so its total area is approximately 1 rather than showing raw counts.</p>`,
-      code: `plt.figure(figsize=(10, 4))
+      code: `
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Create a reproducible random number generator
+rng = np.random.default_rng(4202)
+
+# Draw 2,000 samples, each containing 100 delivery times
+sample_draws = rng.choice(
+    transit.to_numpy(),
+    size=(2000, 100),
+    replace=True
+)
+
+# Calculate the mean of each sample
+sample_means = sample_draws.mean(axis=1)
+
+# Plot the two distributions
+plt.figure(figsize=(10, 4))
 
 plt.subplot(1, 2, 1)
 plt.hist(transit, bins=20, density=True)
@@ -383,7 +401,8 @@ plt.xlabel("Sample mean (days)")
 plt.ylabel("Density")
 
 plt.tight_layout()
-plt.show()`
+plt.show()
+`
     },
     {
       id: 'st-4-2-c1',
