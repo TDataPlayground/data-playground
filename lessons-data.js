@@ -1246,7 +1246,7 @@ MODULES.push({
 MODULES.push({
   id: 'st2',
   file: 'lessons/st2a.js',
-  v: 1,
+  v: 2,
   track: 'statistics',
   title: 'Module 2: Probability',
   lessons: [
@@ -1258,7 +1258,7 @@ MODULES.push({
 MODULES.push({
   id: 'st2-b',
   file: 'lessons/st2b.js',
-  v: 1,
+  v: 2,
   track: 'statistics',
   title: 'Module 2: Probability',
   lessons: [
