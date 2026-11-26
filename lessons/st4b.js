@@ -459,7 +459,25 @@ plt.show()
       title: 'Calculate a 95% bootstrap confidence interval',
       body: `<p>Use the bootstrap distribution already stored in <code>boot_means</code>. Calculate its 2.5th and 97.5th percentiles and print them as the lower and upper endpoints of a 95% percentile bootstrap interval.</p>
 <p><b>Python connection:</b> <code>np.quantile()</code> returns values at requested cumulative proportions. The list <code>[0.025, 0.975]</code> asks for the lower and upper cut-offs that leave 2.5% in each tail.</p>`,
-      code: `boot_lower, boot_upper = np.quantile(boot_means, [0.025, 0.975])
+      code: `import numpy as np
+
+original_sample = np.asarray(transit, dtype=float)
+original_sample = original_sample[np.isfinite(original_sample)]
+
+rng = np.random.default_rng(4204)
+
+boot_samples = rng.choice(
+    original_sample,
+    size=(2000, len(original_sample)),
+    replace=True
+)
+
+boot_means = boot_samples.mean(axis=1)
+
+boot_lower, boot_upper = np.quantile(
+    boot_means,
+    [0.025, 0.975]
+)
 
 print("95% bootstrap interval:")
 print(round(boot_lower, 3), "to", round(boot_upper, 3), "days")`
