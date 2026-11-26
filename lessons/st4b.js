@@ -395,35 +395,40 @@ print("Bootstrap standard error:", round(boot_means.std(ddof=1), 3))`
       code: `import numpy as np
 import matplotlib.pyplot as plt
 
-# Re-create the original sample for this demonstration
+# Draw an original sample
 original_sample = rng.choice(transit.to_numpy(), size=300, replace=True)
 
-# Generate the bootstrap samples
+# Generate bootstrap samples
 bootstrap_draws = rng.choice(
     original_sample,
     size=(2000, len(original_sample)),
     replace=True
 )
 
-# Calculate one mean for each bootstrap sample
+# Calculate bootstrap means
 boot_means = bootstrap_draws.mean(axis=1)
 
-# Plot the bootstrap distribution
-plt.figure(figsize=(8, 4))
-plt.hist(boot_means, bins=30, density=True)
+# Create the histogram
+fig, ax = plt.subplots(figsize=(8, 4))
 
-plt.axvline(
+ax.hist(boot_means, bins=30, density=True)
+
+ax.axvline(
     original_sample.mean(),
     color="red",
     linestyle="--",
     label="Original sample mean"
 )
 
-plt.title("Bootstrap distribution of the mean")
-plt.xlabel("Bootstrap mean (days)")
-plt.ylabel("Density")
-plt.legend()
-plt.show()`
+ax.set_title("Bootstrap distribution of the mean")
+ax.set_xlabel("Bootstrap mean (days)")
+ax.set_ylabel("Density")
+ax.legend()
+
+fig.tight_layout()
+
+# Return the figure for the platform to render
+fig`
     },
     {
       type: 'explain',
