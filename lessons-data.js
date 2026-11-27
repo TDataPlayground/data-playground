@@ -1290,7 +1290,7 @@ MODULES.push({
 MODULES.push({
   id: 'st3-b',
   file: 'lessons/st3b.js',
-  v: 1,
+  v: 2,
   track: 'statistics',
   title: 'Module 3: Distributions',
   lessons: [
@@ -1311,7 +1311,7 @@ MODULES.push({
 MODULES.push({
   id: 'st4',
   file: 'lessons/st4a.js',
-  v: 1,
+  v: 2,
   track: 'statistics',
   title: 'Module 4: Estimation and Confidence Intervals',
   lessons: [
