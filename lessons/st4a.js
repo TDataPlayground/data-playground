@@ -25,8 +25,16 @@ transit = deliveries.loc[
 ].astype(float).reset_index(drop=True)
 
 rng = np.random.default_rng(2026)
+
+# Ready-made samples for the exercises. Each uses its own seeded generator,
+# so rng above is left untouched and the same samples appear every time.
+_g1 = np.random.default_rng(2026)
+sample_250 = _g1.choice(transit.to_numpy(), size=250, replace=False)
+_g2 = np.random.default_rng(2026)
+sample_a = _g2.choice(transit.to_numpy(), size=150, replace=False)
+sample_b = _g2.choice(transit.to_numpy(), size=150, replace=False)
 `,
-  preloaded: ['deliveries', 'transit', 'rng'],
+  preloaded: ['deliveries', 'transit', 'rng', 'sample_250', 'sample_a', 'sample_b'],
   title: '4.1 From populations to samples: learning from part of the data',
   tables: [],
   intro: `TradeFlow's Head of Operations asks a deceptively simple question: <i>“What is the average delivery time across all the orders we handle?”</i> The analytics team could calculate an average from every recorded delivery with a usable dispatch and delivery date. But imagine the team is asked to estimate performance before all records have arrived, or to audit only a manageable selection of deliveries. How much can a sample tell us about the larger group?<br><br>In Module 1, you learned the difference between a population and a sample. Now we make that distinction precise. You will learn the language of parameters and statistics, see why two samples can produce different answers, compare random and biased sampling, and use Python to draw and describe samples from TradeFlow's delivery records.`,
@@ -300,8 +308,13 @@ transit = deliveries.loc[
 ].astype(float).reset_index(drop=True)
 
 rng = np.random.default_rng(4202)
+
+# Ready-made simulation for the exercises: 1,000 samples of 64 deliveries.
+# It uses its own seeded generator, so rng above is left untouched.
+_g = np.random.default_rng(4202)
+means_64 = _g.choice(transit.to_numpy(), size=(1000, 64), replace=True).mean(axis=1)
 `,
-  preloaded: ['deliveries', 'transit', 'rng'],
+  preloaded: ['deliveries', 'transit', 'rng', 'means_64'],
   title: '4.2 Sampling distributions and the Central Limit Theorem',
   tables: [],
   intro: `A single sample gives TradeFlow one estimate of average delivery time. But how much would that estimate change if the team repeated the sampling process? This is the question behind a <b>sampling distribution</b>.<br><br>In this lesson, you will learn why a sampling distribution is not the same as the distribution of individual delivery times. You will simulate repeated samples, calculate the standard error of the mean, and investigate the Central Limit Theorem. You will also learn why the theorem does not say that every dataset becomes normal, and why dependence, extreme skew and small samples require care.`,
