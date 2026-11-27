@@ -1353,6 +1353,26 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'st5-b',
+  file: 'lessons/st5b.js',
+  v: 1,
+  track: 'statistics',
+  title: 'Module 5: Hypothesis Testing',
+  lessons: [
+    {
+      id: 'st-5-3',
+      title: '5.3 Two-sample hypothesis tests: comparing groups',
+      ex: 2
+    },
+    {
+      id: 'st-5-4',
+      title: '5.4 Hypothesis tests for categorical data',
+      ex: 2
+    }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
