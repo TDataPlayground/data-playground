@@ -1335,7 +1335,7 @@ MODULES.push({
 MODULES.push({
   id: 'st5',
   file: 'lessons/st5a.js',
-  v: 1,
+  v: 2,
   track: 'statistics',
   title: 'Module 5: Hypothesis Testing',
   lessons: [
