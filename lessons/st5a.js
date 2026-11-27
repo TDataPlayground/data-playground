@@ -14,13 +14,10 @@ from scipy import stats
 deliveries = pd.read_csv("deliveries.csv")
 
 deliveries["dispatch_date"] = pd.to_datetime(
-    deliveries["dispatch_date"],
-    errors="coerce"
+    deliveries["dispatch_date"], errors="coerce"
 )
-
 deliveries["delivery_date"] = pd.to_datetime(
-    deliveries["delivery_date"],
-    errors="coerce"
+    deliveries["delivery_date"], errors="coerce"
 )
 
 deliveries["transit_days"] = (
@@ -33,86 +30,168 @@ transit = deliveries.loc[
     "transit_days"
 ].astype(float).reset_index(drop=True)
 
-rng = np.random.default_rng(5101)
+rng = np.random.default_rng(5301)
 `,
   preloaded: ['deliveries', 'transit', 'rng'],
-  title: '5.1 The logic of hypothesis testing',
+  title: '5.1 Hypothesis testing: questions, evidence and decisions',
   tables: [],
-  intro: `In Module 4, we learned how to estimate population values and quantify uncertainty using confidence intervals and bootstrap methods. But business analysts face another important question: <b>when the data appear to disagree with a claim, is the difference meaningful evidence, or could it reasonably have occurred through ordinary sampling variation?</b><br><br>Imagine that TradeFlow's operations team claims that the average delivery time is five days. An analyst examines delivery records and obtains a sample mean of 5.4 days. Is that enough evidence to challenge the claim? Not necessarily. A sample mean will rarely equal a population mean exactly. The difference might simply reflect random variation.<br><br><b>Hypothesis testing</b> gives us a disciplined way to evaluate claims using sample evidence. In this lesson, you will learn how hypotheses are constructed, how test statistics measure disagreement with a claim, how p-values quantify evidence, and how analysts make decisions without confusing statistical significance with certainty.`,
+  intro: `A business analyst rarely works with data simply to describe what has already happened. Management often has a specific claim that needs to be evaluated.
+
+<p>Suppose TradeFlow's operations team believes that its average delivery time is five days. A sample of completed deliveries produces an average of 5.4 days. Is that difference meaningful evidence that the true average delivery time is greater than five days, or could a difference of this size reasonably occur because the team happened to observe a particular sample?</p>
+
+<p>That is the kind of question <b>hypothesis testing</b> is designed to investigate.</p>
+
+<p>In this lesson, you will learn how to formulate hypotheses, understand the logic behind a test statistic and a p-value, distinguish statistical significance from practical importance, and interpret a test without overstating what the data establish.</p>
+
+<p>We will also examine the two major ways a hypothesis test can lead to an incorrect decision: Type I and Type II errors. These ideas are essential because statistical decisions are made under uncertainty. A hypothesis test does not eliminate uncertainty; it provides a disciplined way to reason about evidence.</p>`,
   steps: [
     {
       type: 'explain',
-      title: 'Why hypothesis testing exists: samples naturally vary',
-      body: `<p>Suppose TradeFlow's operations director says that the population mean delivery time is five days. The analytics team takes a sample of deliveries and calculates its mean.</p>
-<p>Even if the director's claim were exactly correct, the sample mean would not necessarily equal five. A different sample would probably produce a slightly different mean.</p>
-<p>This is the same <b>sampling variability</b> you studied in Module 4. A statistic calculated from a sample changes from sample to sample, even when the underlying population parameter remains fixed.</p>
-<p>That creates an important problem. If the sample mean is 5.3 days, is the difference from five days evidence that the population mean is different? Or is 5.3 a result that could reasonably occur when the population mean really is five?</p>
-<p>Hypothesis testing answers this question by comparing the observed data with what we would expect to see if a particular population claim were true.</p>
-<div class="callout analogy"><b>A useful way to think about it:</b> imagine a fair coin. Getting seven heads in ten tosses does not prove that the coin is unfair. A fair coin can produce seven heads by chance. But getting 700 heads in 1,000 tosses would be much harder to explain as ordinary random variation. The evidence depends not only on how far the result is from the claim, but also on how much variation we would expect.</div>
-<p>Hypothesis testing is therefore not a search for any difference between a sample result and a claimed value. It is a method for judging whether the observed difference is unusually large relative to the variation expected under the claim.</p>
-<p><b>The central question is:</b> if the claim were true, how surprising would the evidence we observed be?</p>`
-    },
-    {
-      type: 'explain',
-      title: 'The null hypothesis: the claim we evaluate',
-      body: `<p>A hypothesis is a statement about a population parameter or probability distribution. In classical hypothesis testing, we begin by specifying two competing statements.</p>
-<p>The first is the <b>null hypothesis</b>, written as H₀ (H-zero). It is the reference claim against which the sample evidence will be evaluated.</p>
-<p>For TradeFlow's delivery-time example, let μ represent the true population mean delivery time. If the operations director claims that the mean is five days, we can write:</p>
-<p><b>H₀: μ = 5 days</b></p>
-<p>The symbol μ represents a population mean, not the mean of the particular sample we happened to collect. The null hypothesis is about the underlying process or population we want to understand.</p>
-<p>Why do we start with this statement? Because we need a clear reference model. We calculate what kinds of sample results would be expected if the null hypothesis were true, and then compare our actual result with that reference.</p>
-<p>The null hypothesis does not have to be a claim that nobody believes. It can represent a current standard, a benchmark, a claimed performance level, or a no-effect position.</p>
-<table class="mini">
-<tr><th>Business question</th><th>Possible null hypothesis</th></tr>
-<tr><td>Is average delivery time five days?</td><td>H₀: μ = 5</td></tr>
-<tr><td>Is the late-delivery rate 10%?</td><td>H₀: p = 0.10</td></tr>
-<tr><td>Does a new process change average handling time?</td><td>H₀: μ<sub>new</sub> − μ<sub>old</sub> = 0</td></tr>
-<tr><td>Are two payment methods equally successful?</td><td>H₀: p<sub>card</sub> − p<sub>mobile</sub> = 0</td></tr>
-</table>
-<p>Notice that the null hypothesis is normally written using equality. Equality gives us a precise reference value from which to derive the sampling distribution of a test statistic.</p>
-<div class="callout watch"><b>Important:</b> the null hypothesis is not automatically true just because we begin by assuming it for the calculation. It is a working reference position. The evidence may or may not be strong enough to reject it.</div>`
-    },
-    {
-      type: 'explain',
-      title: 'The alternative hypothesis: what the evidence may support',
-      body: `<p>The second statement is the <b>alternative hypothesis</b>, written as H₁ or Hₐ. It describes the direction or kind of difference we want the test to detect.</p>
-<p>For the five-day delivery claim, there are three common possibilities.</p>
-<table class="mini">
-<tr><th>Alternative</th><th>Meaning</th><th>Test direction</th></tr>
-<tr><td>Hₐ: μ ≠ 5</td><td>The population mean is different from five days</td><td>Two-sided</td></tr>
-<tr><td>Hₐ: μ &gt; 5</td><td>The population mean is greater than five days</td><td>Right-sided</td></tr>
-<tr><td>Hₐ: μ &lt; 5</td><td>The population mean is less than five days</td><td>Left-sided</td></tr>
-</table>
-<p>A <b>two-sided test</b> looks for evidence of a difference in either direction. It is appropriate when values that are either higher or lower than the benchmark would matter to the research question.</p>
-<p>A <b>one-sided test</b> looks for evidence in one specified direction. For example, if the only question is whether delivery time exceeds five days, the alternative can be Hₐ: μ &gt; 5.</p>
-<p>The direction must be chosen before examining the result. An analyst must not look at the sample, see which direction produces a smaller p-value, and then select that direction after the fact. Doing so changes the probability of a false positive and makes the reported test misleading.</p>
-<div class="callout work"><b>TradeFlow example:</b> If management is concerned specifically about deliveries becoming slower, a right-sided test may match the operational question. If management wants to know whether the average has changed in either direction, a two-sided test is more appropriate.</div>
-<p>There is also a subtle but important point: failing to find evidence that the mean is greater than five does not establish that the mean is five or less. A test can fail to detect a difference because the true difference is small, the sample is noisy, or the sample is not sufficiently informative.</p>`
-    },
-    {
-      type: 'explain',
-      title: 'Why the null hypothesis is treated as the reference',
-      body: `<p>Classical hypothesis testing follows a particular logical structure:</p>
+      title: 'Why hypothesis testing is necessary',
+      body: `<p>In Module 4, we learned that a sample can be used to estimate an unknown population parameter. We also learned that estimates vary from sample to sample.</p>
+
+<p>That sampling variability creates an important problem. Imagine that TradeFlow wants to determine whether its average delivery time exceeds five days.</p>
+
+<p>The analytics team cannot normally measure every delivery that TradeFlow will ever complete. Instead, it observes a sample and calculates a sample mean.</p>
+
+<p>Suppose the sample mean is 5.4 days. There are at least two possible explanations:</p>
+
 <ol>
-<li>State the null and alternative hypotheses before analysing the result.</li>
-<li>Temporarily assume the null hypothesis is true.</li>
-<li>Determine how much sample-to-sample variation we would expect under that assumption.</li>
-<li>Measure how far the observed sample result is from the null value.</li>
-<li>Assess how unusual that result would be if the null hypothesis were true.</li>
-<li>Decide whether the evidence is sufficiently inconsistent with the null hypothesis to reject it.</li>
+<li><b>The population mean really is greater than five days.</b> The sample has revealed evidence of a genuine difference.</li>
+<li><b>The population mean is still five days.</b> The sample happened to produce a mean of 5.4 because of ordinary sampling variation.</li>
 </ol>
-<p>This approach is sometimes compared with a legal trial. A court starts with a presumption of innocence and evaluates the evidence against that position. The evidence must be sufficiently strong before the presumption is rejected.</p>
-<p>The analogy is useful, but it has limits. Statistical hypothesis testing does not establish truth in the same way that a court makes a legal decision. A statistical test quantifies evidence under a mathematical model and its assumptions. It does not prove that a hypothesis is true or false.</p>
-<p>When we assume H₀ for the calculation, we are not claiming that H₀ is certainly true. We are asking a conditional question:</p>
-<p><b>If H₀ were true, how unusual would our observed result be?</b></p>
-<p>This conditional reasoning is the foundation of the p-value.</p>`
+
+<p>The sample mean alone cannot tell us which explanation is more convincing. We need to compare the observed result with the results we would expect if the original claim were true.</p>
+
+<p>This is the fundamental logic of hypothesis testing:</p>
+
+<ol>
+<li>Begin with a clearly defined claim about a population parameter.</li>
+<li>Assume, temporarily, that the claim is true.</li>
+<li>Determine what kinds of sample results would be expected under that assumption.</li>
+<li>Compare the actual sample result with those expected results.</li>
+<li>Decide whether the observed evidence is sufficiently unusual to reject the original claim.</li>
+</ol>
+
+<p>Notice the logic: we do not begin by proving that our preferred explanation is correct. We begin by asking whether the observed data are compatible with a specific reference claim.</p>
+
+<p><b>Hypothesis testing is therefore a framework for evaluating evidence, not a machine that proves business claims to be true or false.</b></p>`
     },
     {
       type: 'explain',
-      title: 'The test statistic: measuring disagreement with the null',
-      body: `<p>We need a way to measure how far our observed result is from the value predicted by the null hypothesis. That is the job of a <b>test statistic</b>.</p>
-<p>For a one-sample test of a population mean when the population standard deviation is unknown, the common test statistic is:</p>
+      title: 'The null and alternative hypotheses',
+      body: `<p>Every conventional hypothesis test begins with two competing statements about a population parameter.</p>
+
+<p>The first is the <b>null hypothesis</b>, written as H₀. It represents the reference position that the test evaluates. It commonly expresses no difference, no effect, no change, or a specific benchmark value.</p>
+
+<p>The second is the <b>alternative hypothesis</b>, written as H₁ or Hₐ. It represents the direction or type of difference that the analyst wants to investigate.</p>
+
+<p>Suppose TradeFlow wants to investigate whether its population mean delivery time is greater than five days. Let μ represent the true population mean delivery time.</p>
+
+<table class="mini">
+<tr><th>Hypothesis</th><th>Statement</th><th>Meaning</th></tr>
+<tr><td>Null, H₀</td><td>μ = 5</td><td>The population mean is five days.</td></tr>
+<tr><td>Alternative, H₁</td><td>μ &gt; 5</td><td>The population mean is greater than five days.</td></tr>
+</table>
+
+<p>The null hypothesis is not necessarily what management believes. It is the reference claim against which the sample evidence is evaluated.</p>
+
+<p><b>Three common forms of the alternative hypothesis</b></p>
+
+<p>The alternative hypothesis determines which results count as evidence against H₀.</p>
+
+<ul>
+<li><b>Right-tailed test:</b> H₁: μ &gt; 5. We are investigating whether the population mean is greater than the benchmark.</li>
+<li><b>Left-tailed test:</b> H₁: μ &lt; 5. We are investigating whether the population mean is lower than the benchmark.</li>
+<li><b>Two-tailed test:</b> H₁: μ ≠ 5. We are investigating whether the population mean differs from the benchmark in either direction.</li>
+</ul>
+
+<p>The direction matters. If the business question is whether delivery time has increased, a result below five days is not evidence of an increase. A right-tailed test reflects that question.</p>
+
+<p>For a two-tailed test, deviations in either direction matter. A mean of 4.6 days and a mean of 5.4 days are both departures from five days.</p>
+
+<p><b>Why must the alternative be chosen before examining the result?</b></p>
+
+<p>Choosing the direction after seeing the data creates an opportunity to manipulate the analysis. For example, an analyst might initially plan a two-tailed test but switch to a right-tailed test only because the sample mean happens to be above the benchmark. That can make the evidence appear stronger than it really is.</p>
+
+<p>The hypothesis should be determined by the research question, business context and analysis plan—not by whichever result produces the smallest p-value.</p>
+
+<p><b>Important distinction:</b> hypotheses are statements about population parameters, not sample statistics. We do not test whether the sample mean equals five. We use the sample mean to evaluate a claim about the unknown population mean.</p>`
+    },
+    {
+      type: 'check',
+      title: 'Check your understanding: identify the hypotheses',
+      question: 'TradeFlow wants to investigate whether its true average delivery time is lower than a benchmark of six days. Which hypotheses represent this question?',
+      options: [
+        'H₀: μ = 6; H₁: μ < 6',
+        'H₀: x̄ = 6; H₁: x̄ < 6',
+        'H₀: μ < 6; H₁: μ = 6',
+        'H₀: μ = 6; H₁: μ ≠ 6'
+      ],
+      answer: 0,
+      why: [
+        'Correct. The null hypothesis specifies the benchmark population mean, while the alternative states that the population mean is lower.',
+        'The hypotheses should describe population parameters. x̄ is a sample statistic, not the unknown population mean.',
+        'The null hypothesis is normally the reference claim, and the alternative represents the departure being investigated.',
+        'This is a two-tailed alternative. It asks whether the mean differs in either direction, not specifically whether it is lower.'
+      ]
+    },
+    {
+      type: 'explain',
+      title: 'The significance level: deciding how demanding the evidence must be',
+      body: `<p>Before conducting a test, analysts commonly choose a <b>significance level</b>, represented by the Greek letter α (alpha).</p>
+
+<p>The significance level is the maximum probability of a Type I error that the testing procedure is designed to tolerate, assuming the test's assumptions hold.</p>
+
+<p>A commonly used value is:</p>
+
+<p><b>α = 0.05</b></p>
+
+<p>This means that the analyst is using a procedure with a 5% Type I error rate under the null hypothesis, in the long run, when the test assumptions are satisfied.</p>
+
+<p>It does <b>not</b> mean:</p>
+
+<ul>
+<li>There is a 5% probability that the null hypothesis is true.</li>
+<li>There is a 95% probability that the alternative hypothesis is true.</li>
+<li>The result has a 95% chance of being correct.</li>
+<li>There is only a 5% chance that the result occurred randomly.</li>
+</ul>
+
+<p>Those interpretations confuse the probability of observing data under a hypothesis with the probability that the hypothesis itself is true.</p>
+
+<p><b>How α controls the decision threshold</b></p>
+
+<p>A smaller significance level requires stronger evidence before rejecting H₀.</p>
+
+<table class="mini">
+<tr><th>Significance level</th><th>General interpretation</th></tr>
+<tr><td>0.10</td><td>A 10% long-run Type I error rate.</td></tr>
+<tr><td>0.05</td><td>A 5% long-run Type I error rate.</td></tr>
+<tr><td>0.01</td><td>A 1% long-run Type I error rate.</td></tr>
+</table>
+
+<p>For example, using α = 0.01 rather than α = 0.05 makes it harder to reject the null hypothesis. This can reduce false positive decisions, but it can also make real effects harder to detect unless the sample size is sufficiently large.</p>
+
+<p>The significance level should be selected before the results are examined. Choosing it afterwards because it makes a result appear significant undermines the integrity of the test.</p>
+
+<p><b>Business interpretation:</b> a company investigating a potentially costly operational change may require particularly strong evidence before acting. However, the choice of α should reflect the consequences of errors, the study design and accepted analytical standards—not an arbitrary desire to obtain a significant result.</p>`
+    },
+    {
+      type: 'explain',
+      title: 'The test statistic: measuring how far the evidence is from the null claim',
+      body: `<p>A hypothesis test needs a way to measure how unusual the observed sample result is under the null hypothesis.</p>
+
+<p>This is the purpose of a <b>test statistic</b>.</p>
+
+<p>A test statistic transforms the observed data into a number that can be compared with a probability distribution expected under H₀.</p>
+
+<p>For a one-sample test of a population mean when the population standard deviation is unknown, the one-sample t-statistic is:</p>
+
 <p><b>t = (x̄ − μ₀) / (s / √n)</b></p>
+
+<p>Where:</p>
+
 <ul>
 <li><b>x̄:</b> the observed sample mean.</li>
 <li><b>μ₀:</b> the population mean specified by the null hypothesis.</li>
@@ -120,369 +199,482 @@ rng = np.random.default_rng(5101)
 <li><b>n:</b> the sample size.</li>
 <li><b>s / √n:</b> the estimated standard error of the sample mean.</li>
 </ul>
-<p>The numerator, x̄ − μ₀, is the difference between the observed sample mean and the null value. The denominator measures how much the sample mean would typically vary from sample to sample under the model.</p>
-<p>The t-statistic therefore expresses the observed difference in standard-error units.</p>
-<p>For example, a t-statistic of 2 means the sample mean is two estimated standard errors above the null value. A t-statistic of −2 means it is two estimated standard errors below the null value.</p>
-<p>A value near zero means the sample mean is close to the null value relative to its estimated sampling variability. A large absolute value means the observed result is relatively far from the null value.</p>
-<div class="callout analogy"><b>Think in standard-error units:</b> a difference of 0.5 days may be large if the standard error is 0.1 days, but small if the standard error is 2 days. The raw difference alone does not tell us how surprising the result is.</div>
-<p>This is why test statistics combine the observed difference with a measure of uncertainty. They help distinguish a large difference with high uncertainty from a smaller difference measured very precisely.</p>`
-    },
-    {
-      type: 'try',
-      title: 'Calculate a test statistic by hand',
-      body: `<p>Use the observed TradeFlow delivery-time records to calculate the sample mean, sample standard deviation, standard error and t-statistic for the null hypothesis that the population mean is five days.</p>
-<p>We use all valid recorded transit durations in the available dataset. The five-day value is an illustrative benchmark for teaching; it is not being presented as TradeFlow's verified service-level agreement.</p>
-<p>Read the calculation carefully:</p>
-<ul>
-<li><code>transit.mean()</code> calculates the observed sample mean.</li>
-<li><code>transit.std(ddof=1)</code> calculates the sample standard deviation using n−1 in the denominator.</li>
-<li><code>np.sqrt(n)</code> calculates the square root of the sample size.</li>
-<li><code>(x_bar - mu_0) / standard_error</code> expresses the observed difference in standard-error units.</li>
-</ul>
-<p>The sign tells us the direction of the difference. The absolute value tells us its distance from zero in standard-error units.</p>`,
-      code: `sample = transit.to_numpy()
 
-n = len(sample)
-x_bar = sample.mean()
-s = sample.std(ddof=1)
+<p>The numerator measures the difference between the observed sample mean and the benchmark. The denominator measures the amount of sampling variability expected in the sample mean.</p>
 
-mu_0 = 5
-standard_error = s / np.sqrt(n)
+<p>This ratio is important because a difference cannot be judged properly without considering uncertainty.</p>
 
-t_statistic = (x_bar - mu_0) / standard_error
+<p>Consider two hypothetical investigations:</p>
 
-print("Sample size:", n)
-print("Sample mean:", round(x_bar, 4))
-print("Sample standard deviation:", round(s, 4))
-print("Standard error:", round(standard_error, 4))
-print("t-statistic:", round(t_statistic, 4))`
-    },
-    {
-      type: 'explain',
-      title: 'The null distribution: what results would look like if H₀ were true',
-      body: `<p>A test statistic has a probability distribution under the null hypothesis. This is called its <b>null distribution</b>.</p>
-<p>For a one-sample t-test, when the observations are independent and the population is normally distributed—or when the sample is sufficiently large for the approximation to be reliable—the test statistic follows a Student's t distribution with n−1 degrees of freedom under H₀.</p>
-<p>Why do we need this distribution? Because the test statistic alone is not yet a probability. A t-statistic of 2.1 does not tell us, by itself, whether the evidence is unusual. We need to know how frequently values that far from zero would occur under the null model.</p>
-<p>The Student's t distribution resembles the standard normal distribution but has heavier tails, particularly when the sample is small. Those heavier tails account for the extra uncertainty introduced by estimating the population standard deviation using the sample standard deviation.</p>
-<p>As the degrees of freedom increase, the t distribution becomes closer to the standard normal distribution.</p>
-<p>For a one-sample t-test:</p>
-<p><b>Degrees of freedom = n − 1</b></p>
-<p>The degrees of freedom describe how much independent information remains after estimating the sample mean. The n−1 result arises because the deviations from the sample mean must sum to zero, so only n−1 of them can vary independently.</p>
-<p>The null distribution is not the distribution of the original delivery observations. It is the distribution of the <b>test statistic</b> that would arise across repeated samples if the null hypothesis were true.</p>`
-    },
-    {
-      type: 'explain',
-      title: 'The p-value: measuring how unusual the evidence is',
-      body: `<p>The <b>p-value</b> is the probability, assuming the null hypothesis and the test's assumptions are true, of obtaining a test statistic at least as extreme as the one observed, in the direction or directions specified by the alternative hypothesis.</p>
-<p>For a two-sided test, “at least as extreme” means a test statistic at least as far from zero in either direction. For a right-sided test, it means a value at least as large as the observed statistic. For a left-sided test, it means a value at least as small.</p>
-<p>A small p-value means that the observed result would be relatively unusual if the null hypothesis were true. A large p-value means the result is not particularly unusual under the null model.</p>
-<p>For a two-sided t-test, the p-value can be calculated from the t distribution:</p>
-<p><b>p = 2 × P(T ≥ |t observed|)</b></p>
-<p>The factor of two accounts for extreme results in both tails of the distribution.</p>
-<p>In SciPy, <code>stats.t.sf()</code> calculates a survival probability: the probability of observing a value greater than a specified point. We use it to calculate the upper-tail probability and multiply by two for a two-sided test.</p>
-<div class="callout watch"><b>One of the most important rules in statistics:</b> the p-value is NOT the probability that the null hypothesis is true. It is calculated under the assumption that the null hypothesis is true. It also does not tell us the probability that the result occurred “by chance” in the everyday sense.</div>
-<p>A p-value of 0.03 means that, under the null hypothesis and the model assumptions, results at least as extreme as the observed result would occur about 3% of the time in repeated samples. It does not mean there is a 3% probability that H₀ is true.</p>`
-    },
-    {
-      type: 'try',
-      title: 'Calculate a two-sided p-value',
-      body: `<p>Use the t-statistic calculated from the available delivery records. The test evaluates H₀: μ = 5 against Hₐ: μ ≠ 5.</p>
-<p><code>stats.t.sf()</code> calculates the upper-tail probability of the t distribution. We pass the absolute value of the test statistic because a two-sided test considers extreme values in either direction.</p>
-<p><code>df = n - 1</code> supplies the degrees of freedom. Multiplying the one-tail probability by two gives the two-sided p-value.</p>
-<p>We also use <code>stats.ttest_1samp()</code> as a software cross-check. The manually calculated p-value and SciPy's result should agree apart from tiny numerical differences.</p>`,
-      code: `sample = transit.to_numpy()
-
-n = len(sample)
-x_bar = sample.mean()
-s = sample.std(ddof=1)
-
-mu_0 = 5
-se = s / np.sqrt(n)
-t_statistic = (x_bar - mu_0) / se
-df = n - 1
-
-p_value_manual = 2 * stats.t.sf(
-    abs(t_statistic),
-    df=df
-)
-
-test_result = stats.ttest_1samp(
-    sample,
-    popmean=mu_0
-)
-
-print("Manual t-statistic:", round(t_statistic, 5))
-print("Manual two-sided p-value:", p_value_manual)
-print("SciPy t-statistic:", test_result.statistic)
-print("SciPy p-value:", test_result.pvalue)`
-    },
-    {
-      type: 'explain',
-      title: 'The significance level: deciding how much evidence is enough',
-      body: `<p>Before conducting a test, analysts often choose a <b>significance level</b>, written as α (alpha).</p>
-<p>The significance level is the maximum probability of a Type I error that the test procedure is designed to tolerate under its assumptions. A Type I error occurs when we reject a null hypothesis that is actually true.</p>
-<p>A common choice is α = 0.05. This means the analyst is using a procedure designed to have a 5% Type I error rate in the long run when the null hypothesis is true and the test assumptions hold.</p>
-<p>The conventional decision rule is:</p>
-<ul>
-<li>If p-value ≤ α, reject H₀.</li>
-<li>If p-value &gt; α, fail to reject H₀.</li>
-</ul>
-<p>Suppose α = 0.05:</p>
 <table class="mini">
-<tr><th>p-value</th><th>Decision</th><th>Interpretation</th></tr>
-<tr><td>0.002</td><td>Reject H₀</td><td>Strong evidence against the null model</td></tr>
-<tr><td>0.031</td><td>Reject H₀</td><td>Evidence is statistically significant at 5%</td></tr>
-<tr><td>0.049</td><td>Reject H₀</td><td>Just below the chosen threshold</td></tr>
-<tr><td>0.051</td><td>Fail to reject H₀</td><td>Does not meet the chosen threshold</td></tr>
-<tr><td>0.420</td><td>Fail to reject H₀</td><td>Not unusual under the null model</td></tr>
+<tr><th>Investigation</th><th>Difference from benchmark</th><th>Standard error</th><th>t-statistic</th></tr>
+<tr><td>A</td><td>0.4 days</td><td>0.1 days</td><td>4.0</td></tr>
+<tr><td>B</td><td>0.4 days</td><td>0.5 days</td><td>0.8</td></tr>
 </table>
-<p>The difference between 0.049 and 0.051 is not scientifically dramatic. The threshold creates a decision rule, but evidence does not suddenly become fundamentally different when a p-value crosses 0.05.</p>
-<p>For this reason, responsible analysts report the exact p-value, effect estimate and uncertainty interval rather than reporting only “significant” or “not significant.”</p>
-<div class="callout watch"><b>Failing to reject is not accepting:</b> when p &gt; α, we have not obtained sufficiently strong evidence to reject H₀ using the chosen procedure. We have not proved H₀ true, and we have not shown that the population parameter exactly equals the null value.</div>`
+
+<p>Both samples are 0.4 days above the benchmark. However, the first difference is large relative to its standard error, while the second is small relative to its standard error.</p>
+
+<p>Investigation A therefore provides stronger evidence against the null hypothesis than Investigation B, assuming the tests are otherwise comparable.</p>
+
+<p><b>The key principle:</b> statistical evidence depends not only on the size of an observed difference, but also on the uncertainty surrounding that difference.</p>
+
+<p>For a t-test, the reference distribution is a Student's t-distribution. Its shape depends on the degrees of freedom, which for a one-sample t-test are n − 1.</p>
+
+<p>When the sample is small, the t-distribution has heavier tails than the standard normal distribution. As the degrees of freedom increase, it becomes increasingly similar to the standard normal distribution.</p>`
     },
     {
       type: 'explain',
-      title: 'One-sided and two-sided p-values',
-      body: `<p>The alternative hypothesis determines which parts of the null distribution count as evidence against H₀.</p>
-<p>Suppose the null value is five days and the observed sample mean is above five.</p>
+      title: 'The p-value: what it actually tells us',
+      body: `<p>The <b>p-value</b> is one of the most important—and most frequently misunderstood—ideas in statistical analysis.</p>
+
+<p>A p-value is the probability, calculated under the assumption that the null hypothesis is true, of obtaining a test statistic at least as extreme as the one observed, in the direction or directions specified by the alternative hypothesis.</p>
+
+<p>In simpler language, it asks:</p>
+
+<p><b>If the null hypothesis were true, how surprising would a result like ours be?</b></p>
+
+<p>Suppose a right-tailed test investigates whether the average delivery time exceeds five days. If the test produces a p-value of 0.02, this means that, assuming the population mean is five days and the model assumptions hold, there is a 2% probability of obtaining a test statistic at least as large as the observed one.</p>
+
+<p>It does not mean there is a 2% probability that the null hypothesis is true.</p>
+
+<p><b>How to interpret a p-value</b></p>
+
+<table class="mini">
+<tr><th>p-value</th><th>Interpretation at α = 0.05</th></tr>
+<tr><td>0.001</td><td>Strong evidence against H₀; reject H₀.</td></tr>
+<tr><td>0.020</td><td>Evidence against H₀; reject H₀.</td></tr>
+<tr><td>0.049</td><td>Evidence just below the chosen threshold; reject H₀.</td></tr>
+<tr><td>0.051</td><td>Does not cross the chosen threshold; fail to reject H₀.</td></tr>
+<tr><td>0.400</td><td>Little evidence against H₀; fail to reject H₀.</td></tr>
+</table>
+
+<p><b>The decision rule</b></p>
+
 <ul>
-<li><b>Two-sided test:</b> counts results at least as far from five in either direction.</li>
-<li><b>Right-sided test:</b> counts results at least as high as the observed result.</li>
-<li><b>Left-sided test:</b> counts results at least as low as the observed result.</li>
+<li>If p ≤ α, reject the null hypothesis.</li>
+<li>If p &gt; α, fail to reject the null hypothesis.</li>
 </ul>
-<p>If the test statistic is positive, the right-sided p-value is the upper-tail probability. The two-sided p-value is twice that probability when the t distribution is symmetric.</p>
-<p>If the test statistic is negative, the left-sided p-value is the lower-tail probability. The two-sided p-value is twice that probability.</p>
-<p>One-sided tests can be more powerful for detecting an effect in the specified direction, but they cannot be used as a convenient way to obtain a smaller p-value after seeing the data. The direction must be justified by the research question and specified before examining the result.</p>
-<p>There is also a practical issue. If an analyst uses a right-sided test because only slower delivery times matter, a result showing significantly faster delivery times does not count as evidence against the null under that test. That may be appropriate for the stated question, but it would be inappropriate if the actual business question was whether delivery times had changed in either direction.</p>`
+
+<p>At the exact boundary, p = α, the conventional rule is to reject H₀.</p>
+
+<p><b>Why do we say “fail to reject” instead of “accept”?</b></p>
+
+<p>Failing to reject H₀ does not prove that H₀ is true. It simply means that the observed data did not provide sufficiently strong evidence against it under the chosen testing procedure.</p>
+
+<p>A study with a small sample may fail to detect an important difference because it has insufficient statistical power. A study with a large sample may detect a very small difference that has little practical importance.</p>
+
+<p>Consequently, the p-value must be interpreted alongside the estimated effect, confidence interval, sample size, assumptions and business context.</p>
+
+<p><b>Never interpret a p-value as the probability that your result happened “by chance”.</b> The p-value is calculated under a specified null model. It does not separate chance from every possible source of bias, measurement error or confounding.</p>`
     },
     {
-      type: 'try',
-      title: 'Compare one-sided and two-sided p-values',
-      body: `<p>Calculate three p-values from the same t-statistic: a right-sided p-value, a left-sided p-value and a two-sided p-value.</p>
-<p>The null hypothesis is H₀: μ = 5. The alternative determines which tail is used. We do not change the observed data or test statistic; only the research question changes.</p>
-<p>For a t distribution, <code>stats.t.cdf()</code> calculates the lower-tail probability and <code>stats.t.sf()</code> calculates the upper-tail probability.</p>
-<p>Compare the three values and explain why the two-sided p-value is not always exactly twice the right-sided p-value. It is twice the smaller tail only when the observed statistic is on the corresponding side and the distribution is symmetric.</p>`,
-      code: `sample = transit.to_numpy()
-
-n = len(sample)
-x_bar = sample.mean()
-s = sample.std(ddof=1)
-mu_0 = 5
-
-t_statistic = (x_bar - mu_0) / (s / np.sqrt(n))
-df = n - 1
-
-p_right = stats.t.sf(t_statistic, df=df)
-p_left = stats.t.cdf(t_statistic, df=df)
-p_two_sided = 2 * stats.t.sf(abs(t_statistic), df=df)
-
-print("t-statistic:", round(t_statistic, 5))
-print("Right-sided p-value:", p_right)
-print("Left-sided p-value:", p_left)
-print("Two-sided p-value:", p_two_sided)`
-    },
-    {
-      id: 'st-5-1-c1',
       type: 'check',
-      title: 'What does a p-value of 0.03 mean?',
-      body: `<p>Assume the test was correctly specified and its assumptions hold.</p>`,
+      title: 'Check your understanding: interpreting a p-value',
+      question: 'A valid hypothesis test produces a p-value of 0.03. The preselected significance level is 0.05. Which conclusion is correct?',
       options: [
-        'There is a 3% probability that the null hypothesis is true',
-        'There is a 3% probability that the alternative hypothesis is true',
-        'If the null hypothesis were true, results at least as extreme as the observed result would occur about 3% of the time under the test model',
-        'There is a 97% probability that the sample result will be repeated'
+        'There is a 3% probability that the null hypothesis is true.',
+        'There is a 97% probability that the alternative hypothesis is true.',
+        'Reject the null hypothesis because 0.03 is below 0.05.',
+        'Accept the null hypothesis because the p-value is close to 0.05.'
       ],
       answer: 2,
       why: [
-        'A p-value is not the probability that the null hypothesis is true.',
-        'A p-value does not directly calculate the probability that the alternative hypothesis is true.',
-        'Correct. The p-value is a conditional probability calculated under the null hypothesis and the test assumptions.',
-        'A p-value does not predict the probability that a future sample will reproduce the observed result.'
+        'A p-value is calculated assuming the null hypothesis is true. It is not the probability that the null hypothesis is true.',
+        'A p-value does not provide the probability that the alternative hypothesis is true.',
+        'Correct. Since p = 0.03 is below α = 0.05, the conventional decision rule is to reject H₀.',
+        'The p-value is below the significance level, so the decision is to reject H₀. We also do not normally say that a null hypothesis has been accepted.'
       ]
     },
     {
-      id: 'st-5-1-c2',
+      type: 'explain',
+      title: 'Type I and Type II errors: why statistical decisions can be wrong',
+      body: `<p>A hypothesis test does not reveal the truth with certainty. It produces a decision based on incomplete information.</p>
+
+<p>Because the population parameter is generally unknown, that decision can be incorrect.</p>
+
+<p>There are two fundamental types of decision error.</p>
+
+<p><b>Type I error: a false positive</b></p>
+
+<p>A Type I error occurs when we reject a null hypothesis that is actually true.</p>
+
+<p>Imagine that TradeFlow's true average delivery time is exactly five days. A sample produces unusually high delivery times, and the test rejects H₀. The analyst concludes that there is evidence of an increase, even though the population mean has not increased.</p>
+
+<p>That is a Type I error.</p>
+
+<p>The probability of a Type I error is controlled by the significance level α, provided the test assumptions hold. At α = 0.05, the test procedure is designed to have a 5% Type I error rate under H₀.</p>
+
+<p><b>Type II error: a false negative</b></p>
+
+<p>A Type II error occurs when we fail to reject a null hypothesis that is actually false.</p>
+
+<p>Suppose TradeFlow's true average delivery time has increased to 5.5 days, but the sample is too small or too variable to provide sufficiently strong evidence. The analyst fails to reject H₀.</p>
+
+<p>That is a Type II error.</p>
+
+<p>The probability of a Type II error is represented by β (beta).</p>
+
+<p><b>Statistical power</b></p>
+
+<p>The power of a test is the probability of correctly rejecting a false null hypothesis.</p>
+
+<p><b>Power = 1 − β</b></p>
+
+<p>If a test has 80% power to detect a particular effect, then, under the specified assumptions and when that effect is truly present, the test has an 80% probability of rejecting the null hypothesis.</p>
+
+<table class="mini">
+<tr><th>Reality</th><th>Decision</th><th>Outcome</th></tr>
+<tr><td>H₀ is true</td><td>Fail to reject H₀</td><td>Correct decision</td></tr>
+<tr><td>H₀ is true</td><td>Reject H₀</td><td>Type I error</td></tr>
+<tr><td>H₀ is false</td><td>Reject H₀</td><td>Correct decision; power</td></tr>
+<tr><td>H₀ is false</td><td>Fail to reject H₀</td><td>Type II error</td></tr>
+</table>
+
+<p><b>What influences statistical power?</b></p>
+
+<ul>
+<li><b>Sample size:</b> larger samples generally reduce the standard error and make real effects easier to detect.</li>
+<li><b>Effect size:</b> larger differences from the null value are generally easier to detect.</li>
+<li><b>Variability:</b> lower population variability generally makes differences easier to detect.</li>
+<li><b>Significance level:</b> a higher α generally increases power but also increases the Type I error rate.</li>
+<li><b>Study design:</b> better measurement, appropriate sampling and reduced noise can improve the ability to detect real effects.</li>
+</ul>
+
+<p>There is an important trade-off. Making a test more demanding can reduce false positives but may increase false negatives if the sample size and other design features remain unchanged.</p>
+
+<p>For this reason, researchers often conduct a <b>power analysis</b> before collecting data. It helps estimate the sample size required to detect an effect of a specified magnitude at a chosen significance level and desired power.</p>`
+    },
+    {
       type: 'check',
-      title: 'Why must the alternative hypothesis be chosen before looking at the result?',
-      body: `<p>Consider an analyst who is free to choose either a left-sided or right-sided test after seeing the sample mean.</p>`,
+      title: 'Check your understanding: identify the error',
+      question: 'TradeFlow's true average delivery time is greater than five days. However, a study fails to reject the null hypothesis that the mean is five days. What kind of outcome has occurred?',
       options: [
-        'Because the sample mean cannot be calculated until the alternative is selected',
-        'Because choosing the direction after seeing the data can inflate the false-positive rate and make the p-value misleading',
-        'Because one-sided tests are always invalid',
-        'Because the null hypothesis changes whenever the sample mean changes'
+        'Type I error',
+        'Type II error',
+        'A correct rejection',
+        'A guaranteed proof that the mean is five days'
       ],
       answer: 1,
       why: [
-        'The sample mean can be calculated independently of the alternative hypothesis.',
-        'Correct. Selecting the most favourable direction after inspecting the data changes the testing procedure and can increase the chance of a false positive.',
-        'One-sided tests can be valid when the research question justifies a directional alternative in advance.',
-        'The null hypothesis is a statement about a population parameter, not a value that changes with each sample.'
+        'Type I error means rejecting a null hypothesis that is actually true.',
+        'Correct. The null hypothesis is false, but the test failed to reject it. This is a Type II error.',
+        'A correct rejection occurs when the null hypothesis is false and the test rejects it.',
+        'Failing to reject a null hypothesis does not prove that it is true.'
       ]
     },
     {
-      type: 'check',
-      id: 'st-5-1-c3',
-      title: 'A test produces p = 0.12 with α = 0.05. What is the correct conclusion?',
-      body: `<p>Use the conventional significance decision rule.</p>`,
-      options: [
-        'Accept that the null hypothesis is definitely true',
-        'Reject the null hypothesis because 12% is greater than 5%',
-        'Fail to reject the null hypothesis because the p-value exceeds the significance level',
-        'Conclude that the alternative hypothesis has a 12% probability of being true'
-      ],
-      answer: 2,
-      why: [
-        'Failing to reject does not prove the null hypothesis true.',
-        'The conventional rule rejects when the p-value is less than or equal to alpha, not greater.',
-        'Correct. The evidence does not meet the chosen 5% significance threshold.',
-        'A p-value is not the probability that the alternative hypothesis is true.'
-      ]
+      type: 'explain',
+      title: 'Statistical significance is not the same as business importance',
+      body: `<p>One of the most important responsibilities of an analyst is to distinguish <b>statistical significance</b> from <b>practical significance</b>.</p>
+
+<p>Statistical significance describes whether the observed evidence crosses a chosen statistical decision threshold. Practical significance describes whether the size of the effect matters in the real world.</p>
+
+<p>Consider two hypothetical TradeFlow studies.</p>
+
+<p><b>Study A:</b> A very large sample produces evidence that average delivery time has increased by 0.02 days. The p-value is 0.001.</p>
+
+<p><b>Study B:</b> A smaller sample suggests that average delivery time has increased by 1.5 days. The p-value is 0.08.</p>
+
+<p>Study A is statistically significant at the 5% level, while Study B is not. But the operational impact of a 1.5-day increase could be much more important than a 0.02-day increase.</p>
+
+<p>This illustrates why the p-value cannot be the only measure used to evaluate a result.</p>
+
+<p><b>Effect size</b></p>
+
+<p>An effect size describes the magnitude of a difference or relationship. In a one-sample mean test, the raw difference from the benchmark is:</p>
+
+<p><b>Observed difference = x̄ − μ₀</b></p>
+
+<p>For a comparison of means, Cohen's d is one standardised effect-size measure:</p>
+
+<p><b>d = (x̄ − μ₀) / s</b></p>
+
+<p>It expresses the difference in units of the sample standard deviation. Standardised measures can help compare effects measured on different scales, but they should not replace the original units when those units have direct business meaning.</p>
+
+<p><b>Confidence intervals add useful context</b></p>
+
+<p>A confidence interval helps communicate the range of effect sizes compatible with the data under the method's assumptions. It can show whether the plausible effects are tiny, substantial or too uncertain to judge.</p>
+
+<p>For example, an estimated increase of 0.2 days with a narrow confidence interval from 0.1 to 0.3 days suggests a small but precisely estimated increase. An estimated increase of 1.2 days with a wide interval from −0.3 to 2.7 days is much less precise.</p>
+
+<p><b>What an analyst should report</b></p>
+
+<ul>
+<li>The question and hypotheses tested.</li>
+<li>The sample size and how the observations were obtained.</li>
+<li>The estimated effect in meaningful original units.</li>
+<li>The test statistic and p-value.</li>
+<li>The confidence interval, where appropriate.</li>
+<li>The assumptions and limitations of the test.</li>
+<li>The practical implications of the result.</li>
+</ul>
+
+<p>A statistically significant result is not automatically important, and a non-significant result is not proof that there is no meaningful effect. Good analysis communicates both what the evidence suggests and what it cannot establish.</p>`
     },
     {
       type: 'exercise',
-      id: 'st-5-1-ex1',
-      title: 'Your turn: write the hypotheses for a business question',
-      body: `<p>TradeFlow's operations team wants to know whether the population mean delivery time differs from five days.</p>
-<p>Write the null hypothesis as <code>H0</code> and the alternative hypothesis as <code>Ha</code>. Store each as a string and print them.</p>
-<p>This is a two-sided research question because the team wants to detect either slower or faster average delivery times. Do not use the observed sample mean to choose the direction.</p>`,
-      starter: `# Write the null and alternative hypotheses as strings.
-# Then print both statements.`,
-      hints: [
-        'The null hypothesis uses equality. The alternative uses not-equal because either direction matters.',
-        'H0 = "mu = 5 days"\nHa = "mu != 5 days"\nprint("Null hypothesis:", H0)\nprint("Alternative hypothesis:", Ha)'
-      ],
-      solution: `H0 = "mu = 5 days"
-Ha = "mu != 5 days"
+      title: 'Exercise 1: formulate a test for a delivery-time benchmark',
+      body: `<p>TradeFlow's operations team wants to investigate whether the population mean delivery time is greater than five days.</p>
 
-print("Null hypothesis:", H0)
-print("Alternative hypothesis:", Ha)`,
+<p>Before conducting a test, formulate the hypotheses correctly. The parameter of interest is the population mean, μ.</p>
+
+<p>Complete the code by assigning the null benchmark and writing the direction of the alternative hypothesis in a comment. Then print the hypotheses in a readable form.</p>`,
+      starter: `# The population mean delivery time is represented by mu.
+# The benchmark is five days.
+
+mu_0 = 5
+
+# Write the null and alternative hypotheses in comments.
+# H0:
+# H1:
+
+print("Null hypothesis: mu =", mu_0)
+print("Alternative hypothesis: mu > ", mu_0)`,
+      hints: [
+        'The null hypothesis is the reference benchmark.',
+        'The question asks whether the population mean is greater than five, so this is a right-tailed test.',
+        'Use μ for the population mean, not x̄ for the sample mean.'
+      ],
+      solution: `mu_0 = 5
+
+# H0: mu = 5
+# H1: mu > 5
+
+print("Null hypothesis: mu =", mu_0)
+print("Alternative hypothesis: mu > ", mu_0)`,
       ordered: true
     },
     {
       type: 'exercise',
-      id: 'st-5-1-ex2',
-      title: 'Your turn: calculate a one-sample t-statistic',
-      body: `<p>Use the available valid delivery-time observations. Test the benchmark μ₀ = 5 days by calculating the sample mean, sample standard deviation, standard error and t-statistic.</p>
-<p>Store the test statistic as <code>t_stat</code> and print it to four decimal places. Use <code>ddof=1</code> when calculating the sample standard deviation.</p>
-<p>Your solution must calculate the statistic from the data, not type in a result from the lesson demonstration.</p>`,
-      starter: `# Calculate the one-sample t-statistic from transit.
-# Store it as t_stat.`,
-      hints: [
-        'Convert transit to a NumPy array, calculate its mean and sample standard deviation, then divide the difference from five by the standard error.',
-        'sample = transit.to_numpy()\nn = len(sample)\nx_bar = sample.mean()\ns = sample.std(ddof=1)\nse = s / np.sqrt(n)\nt_stat = (x_bar - 5) / se\nprint("t-statistic:", round(t_stat, 4))'
-      ],
-      solution: `sample = transit.to_numpy()
-n = len(sample)
-x_bar = sample.mean()
-s = sample.std(ddof=1)
-se = s / np.sqrt(n)
-t_stat = (x_bar - 5) / se
+      title: 'Exercise 2: compare an observed difference with its standard error',
+      body: `<p>Consider a hypothetical sample with a mean delivery time of 5.4 days, a sample standard deviation of 2 days and 100 observations.</p>
 
-print("t-statistic:", round(t_stat, 4))`,
+<p>Calculate the standard error and the one-sample t-statistic for testing a benchmark of five days.</p>
+
+<p>Do not use a statistical testing function yet. Calculate the components directly so that you understand what the test statistic measures.</p>`,
+      starter: `import numpy as np
+
+sample_mean = 5.4
+mu_0 = 5
+sample_std = 2
+sample_size = 100
+
+# Calculate the standard error.
+standard_error =
+
+# Calculate the t-statistic.
+t_statistic =
+
+print("Standard error:", standard_error)
+print("t-statistic:", t_statistic)`,
+      hints: [
+        'The standard error is the sample standard deviation divided by the square root of the sample size.',
+        'The t-statistic is the difference between the sample mean and the null benchmark divided by the standard error.',
+        'Use np.sqrt(sample_size) for the square root.'
+      ],
+      solution: `import numpy as np
+
+sample_mean = 5.4
+mu_0 = 5
+sample_std = 2
+sample_size = 100
+
+standard_error = sample_std / np.sqrt(sample_size)
+
+t_statistic = (sample_mean - mu_0) / standard_error
+
+print("Standard error:", standard_error)
+print("t-statistic:", t_statistic)`,
       ordered: true
     },
     {
       type: 'exercise',
-      id: 'st-5-1-ex3',
-      title: 'Your turn: calculate a two-sided p-value',
-      body: `<p>Calculate the two-sided p-value for the one-sample t-test of H₀: μ = 5 days using the available delivery-time observations.</p>
-<p>Store the result as <code>p_value</code>. Use the Student's t distribution with n−1 degrees of freedom. Print the p-value without rounding it so that you can inspect its precision.</p>
-<p>Remember: the two-sided test counts extreme results in both tails.</p>`,
-      starter: `# Calculate the t-statistic and its two-sided p-value.
-# Store the p-value as p_value.`,
+      title: 'Exercise 3: simulate sampling variation under a null hypothesis',
+      body: `<p>Suppose the null hypothesis states that the population mean delivery time is five days. We can investigate sampling variation by repeatedly drawing samples from a hypothetical normal population with mean five days and standard deviation two days.</p>
+
+<p>This is a simulation, not a claim that TradeFlow's actual delivery times follow a normal distribution. Its purpose is to show how sample means behave when the null model is assumed to be true.</p>
+
+<p>Generate 10,000 sample means, each based on a sample of 100 observations. Then calculate the proportion of simulated sample means that are at least 5.4 days.</p>
+
+<p>This proportion is an illustrative simulated tail probability for the sample mean under the specified model. It is not a substitute for a properly specified t-test.</p>`,
+      starter: `import numpy as np
+
+rng_sim = np.random.default_rng(5302)
+
+null_mean = 5
+population_std = 2
+sample_size = 100
+number_of_simulations = 10000
+
+simulated_means =
+
+# Calculate the proportion of means at least 5.4.
+tail_proportion =
+
+print("Simulated mean:", simulated_means.mean())
+print("Simulated standard deviation:", simulated_means.std(ddof=1))
+print("Proportion at least 5.4:", tail_proportion)`,
       hints: [
-        'Calculate t_stat and df first. Then use the survival function at abs(t_stat), multiplied by two.',
-        'sample = transit.to_numpy()\nn = len(sample)\nt_stat = (sample.mean() - 5) / (sample.std(ddof=1) / np.sqrt(n))\ndf = n - 1\np_value = 2 * stats.t.sf(abs(t_stat), df=df)\nprint("Two-sided p-value:", p_value)'
+        'Use rng_sim.normal() to generate values from the hypothetical normal population.',
+        'Generate a two-dimensional array with shape (number_of_simulations, sample_size).',
+        'Use axis=1 when calculating the mean of each simulated sample.',
+        'The final proportion is the mean of a Boolean comparison.'
       ],
-      solution: `sample = transit.to_numpy()
-n = len(sample)
-t_stat = (sample.mean() - 5) / (
-    sample.std(ddof=1) / np.sqrt(n)
+      solution: `import numpy as np
+
+rng_sim = np.random.default_rng(5302)
+
+null_mean = 5
+population_std = 2
+sample_size = 100
+number_of_simulations = 10000
+
+simulated_samples = rng_sim.normal(
+    loc=null_mean,
+    scale=population_std,
+    size=(number_of_simulations, sample_size)
 )
-df = n - 1
 
-p_value = 2 * stats.t.sf(abs(t_stat), df=df)
+simulated_means = simulated_samples.mean(axis=1)
 
-print("Two-sided p-value:", p_value)`,
+tail_proportion = np.mean(simulated_means >= 5.4)
+
+print("Simulated mean:", simulated_means.mean())
+print("Simulated standard deviation:", simulated_means.std(ddof=1))
+print("Proportion at least 5.4:", tail_proportion)`,
       ordered: true
     },
     {
       type: 'exercise',
-      id: 'st-5-1-ex4',
-      title: 'Your turn: apply a significance level',
-      body: `<p>Use the two-sided p-value for the test of μ = 5 days. Compare it with a significance level of 0.05.</p>
-<p>Store the significance level as <code>alpha</code>. Store the decision as <code>decision</code>, using the exact text <code>"Reject H0"</code> or <code>"Fail to reject H0"</code>. Print both the p-value and the decision.</p>
-<p>Do not use the word “accept” when the p-value exceeds alpha. A failure to reject does not prove that the null hypothesis is true.</p>`,
-      starter: `# Calculate the p-value, then apply alpha = 0.05.
-# Store the decision as decision.`,
-      hints: [
-        'Calculate the two-sided p-value first. Then compare it with alpha using <=.',
-        'sample = transit.to_numpy()\nn = len(sample)\nt_stat = (sample.mean() - 5) / (sample.std(ddof=1) / np.sqrt(n))\np_value = 2 * stats.t.sf(abs(t_stat), df=n - 1)\nalpha = 0.05\nif p_value <= alpha:\n    decision = "Reject H0"\nelse:\n    decision = "Fail to reject H0"\nprint("p-value:", p_value)\nprint("Decision:", decision)'
-      ],
-      solution: `sample = transit.to_numpy()
-n = len(sample)
-t_stat = (sample.mean() - 5) / (
-    sample.std(ddof=1) / np.sqrt(n)
-)
-p_value = 2 * stats.t.sf(abs(t_stat), df=n - 1)
+      title: 'Exercise 4: visualise the null distribution of sample means',
+      body: `<p>Using the same hypothetical model, create a histogram of the simulated sample means. Add a vertical line at the null mean of five days and another at the observed sample mean of 5.4 days.</p>
 
+<p>The purpose of this graph is to make the null distribution easier to understand. Most sample means should cluster around the null mean. The observed value can then be viewed relative to that distribution.</p>
+
+<p>Remember that the simulation represents a specific hypothetical model. Its shape and spread depend on the assumptions and sample size used.</p>`,
+      starter: `import numpy as np
+import matplotlib.pyplot as plt
+
+rng_sim = np.random.default_rng(5303)
+
+simulated_samples = rng_sim.normal(
+    loc=5,
+    scale=2,
+    size=(10000, 100)
+)
+
+simulated_means =
+
+plt.figure(figsize=(10, 5))
+
+# Draw the histogram.
+
+# Add the null mean and observed mean lines.
+
+plt.title("Simulated null distribution of sample means")
+plt.xlabel("Sample mean delivery time (days)")
+plt.ylabel("Frequency")
+plt.legend()
+plt.tight_layout()
+plt.show()`,
+      hints: [
+        'Calculate one mean per simulated sample with axis=1.',
+        'Use plt.hist() to draw the histogram.',
+        'Use plt.axvline() for the vertical reference lines.',
+        'Give each vertical line a label so the legend can identify it.'
+      ],
+      solution: `import numpy as np
+import matplotlib.pyplot as plt
+
+rng_sim = np.random.default_rng(5303)
+
+simulated_samples = rng_sim.normal(
+    loc=5,
+    scale=2,
+    size=(10000, 100)
+)
+
+simulated_means = simulated_samples.mean(axis=1)
+
+plt.figure(figsize=(10, 5))
+
+plt.hist(
+    simulated_means,
+    bins=35,
+    edgecolor="black",
+    alpha=0.75
+)
+
+plt.axvline(
+    5,
+    linestyle="--",
+    linewidth=2,
+    label="Null mean: 5 days"
+)
+
+plt.axvline(
+    5.4,
+    linestyle="-",
+    linewidth=2,
+    label="Observed mean: 5.4 days"
+)
+
+plt.title("Simulated null distribution of sample means")
+plt.xlabel("Sample mean delivery time (days)")
+plt.ylabel("Frequency")
+plt.legend()
+plt.tight_layout()
+plt.show()`,
+      ordered: true
+    },
+    {
+      type: 'exercise',
+      title: 'Exercise 5: make a decision using the p-value rule',
+      body: `<p>Suppose a properly conducted test produces a p-value of 0.032. The analyst selected a significance level of 0.05 before examining the data.</p>
+
+<p>Write code that compares the p-value with the significance level and prints the appropriate statistical decision.</p>
+
+<p>Your code must distinguish between rejecting the null hypothesis and failing to reject it. Do not print that the null hypothesis has been proven or accepted.</p>`,
+      starter: `p_value = 0.032
+alpha = 0.05
+
+if :
+    print()
+else:
+    print()`,
+      hints: [
+        'The rejection rule is p-value less than or equal to alpha.',
+        'Use an if/else statement.',
+        'Use “Reject the null hypothesis” and “Fail to reject the null hypothesis” as the decision messages.'
+      ],
+      solution: `p_value = 0.032
 alpha = 0.05
 
 if p_value <= alpha:
-    decision = "Reject H0"
+    print("Reject the null hypothesis.")
 else:
-    decision = "Fail to reject H0"
-
-print("p-value:", p_value)
-print("Decision:", decision)`,
-      ordered: true
-    },
-    {
-      type: 'exercise',
-      id: 'st-5-1-ex5',
-      title: 'Your turn: compare one-sided and two-sided evidence',
-      body: `<p>Calculate the right-sided and two-sided p-values for the test of H₀: μ = 5 days. Store them as <code>p_right</code> and <code>p_two</code>.</p>
-<p>Use the same sample and test statistic for both calculations. Print both values and explain in a Python comment which research question each test answers.</p>
-<p>The right-sided alternative is Hₐ: μ &gt; 5. The two-sided alternative is Hₐ: μ ≠ 5.</p>`,
-      starter: `# Calculate both p-values from the same t-statistic.
-# Add a comment explaining each alternative.`,
-      hints: [
-        'Use stats.t.sf(t_stat, df) for the right tail and twice stats.t.sf(abs(t_stat), df) for the two-sided test.',
-        'sample = transit.to_numpy()\nn = len(sample)\nt_stat = (sample.mean() - 5) / (sample.std(ddof=1) / np.sqrt(n))\ndf = n - 1\np_right = stats.t.sf(t_stat, df=df)\np_two = 2 * stats.t.sf(abs(t_stat), df=df)\nprint("Right-sided:", p_right)\nprint("Two-sided:", p_two)'
-      ],
-      solution: `sample = transit.to_numpy()
-n = len(sample)
-t_stat = (sample.mean() - 5) / (
-    sample.std(ddof=1) / np.sqrt(n)
-)
-df = n - 1
-
-# Right-sided: tests whether the population mean exceeds five days.
-p_right = stats.t.sf(t_stat, df=df)
-
-# Two-sided: tests whether the population mean differs from five days.
-p_two = 2 * stats.t.sf(abs(t_stat), df=df)
-
-print("Right-sided:", p_right)
-print("Two-sided:", p_two)`,
+    print("Fail to reject the null hypothesis.")`,
       ordered: true
     },
     {
       type: 'explain',
-      title: 'What a hypothesis test can—and cannot—tell management',
-      body: `<p>A hypothesis test provides evidence relative to a specified null model. It does not produce a final business decision automatically.</p>
-<p>Suppose a test rejects H₀: μ = 5 days. The statistical conclusion is that the sample provides evidence against the claim that the population mean is five days, under the assumptions of the test.</p>
-<p>That conclusion does not tell management:</p>
+      title: 'Module 5.1 summary: the logic behind a hypothesis test',
+      body: `<p>You have now learned the reasoning framework behind conventional hypothesis testing.</p>
+
 <ul>
-<li>Whether the difference is large enough to matter financially.</li>
-<li>Whether the difference was caused by a new policy or operational change.</li>
-<li>Whether every country, warehouse or delivery category has the same pattern.</li>
-<li>Whether the result will continue in future months.</li>
-<li>Whether the sample was representative of the target population.</li>
+<li><b>Null hypothesis:</b> the reference claim about a population parameter.</li>
+<li><b>Alternative hypothesis:</b> the departure from the reference claim that the analyst wants to investigate.</li>
+<li><b>Significance level:</b> the preselected threshold controlling the test's Type I error rate.</li>
+<li><b>Test statistic:</b> a numerical measure of how far the sample result is from what the null hypothesis predicts, relative to sampling variability.</li>
+<li><b>p-value:</b> the probability, assuming H₀ and the model assumptions, of a result at least as extreme as the observed result.</li>
+<li><b>Type I error:</b> rejecting a true null hypothesis.</li>
+<li><b>Type II error:</b> failing to reject a false null hypothesis.</li>
+<li><b>Power:</b> the probability of rejecting a false null hypothesis for a specified effect and set of assumptions.</li>
 </ul>
-<p>A small p-value can accompany a very small effect when the sample is large. A large p-value can accompany a practically important effect when the sample is small or highly variable.</p>
-<p>That is why statistical significance must be considered alongside the estimated effect size, confidence interval, sample design, data quality and business consequences.</p>
-<p>In the next lesson, we will put these ideas into practice using formal tests for a population mean and a population proportion.</p>`
+
+<p>The most important habit is to keep the statistical conclusion appropriately limited. Rejecting H₀ provides evidence against the null model; it does not prove the alternative hypothesis beyond doubt. Failing to reject H₀ means the evidence was insufficient under the chosen procedure; it does not establish that the null hypothesis is true.</p>
+
+<p>In Lesson 5.2, we will put this framework into practice using one-sample tests for means and proportions. You will learn how to calculate the test statistic and p-value with Python, examine the assumptions behind each test, and interpret the results in the context of TradeFlow's operations.</p>`
     }
   ]
 }
@@ -504,13 +696,10 @@ from scipy import stats
 deliveries = pd.read_csv("deliveries.csv")
 
 deliveries["dispatch_date"] = pd.to_datetime(
-    deliveries["dispatch_date"],
-    errors="coerce"
+    deliveries["dispatch_date"], errors="coerce"
 )
-
 deliveries["delivery_date"] = pd.to_datetime(
-    deliveries["delivery_date"],
-    errors="coerce"
+    deliveries["delivery_date"], errors="coerce"
 )
 
 deliveries["transit_days"] = (
@@ -523,495 +712,752 @@ transit = deliveries.loc[
     "transit_days"
 ].astype(float).reset_index(drop=True)
 
-rng = np.random.default_rng(5202)
+rng = np.random.default_rng(5304)
 `,
   preloaded: ['deliveries', 'transit', 'rng'],
-  title: '5.2 Testing claims about a population',
+  title: '5.2 One-sample tests: testing means and proportions',
   tables: [],
-  intro: `In Lesson 5.1, you learned the logic of hypothesis testing: state a claim, calculate a test statistic, measure how unusual the evidence would be under the null hypothesis, and apply a decision rule. Now we will carry out formal tests on two kinds of population parameters.<br><br>First, we will test a claim about a <b>population mean</b> using a one-sample t-test. Then we will test a claim about a <b>population proportion</b> using an exact binomial test. These methods answer different kinds of questions, and choosing the correct one depends on the variable and parameter being studied.<br><br>Throughout the lesson, we will distinguish the mathematical result from the business interpretation. A statistically significant result is evidence against a specified null hypothesis; it is not automatically proof of a business problem, a causal explanation or a practically important effect.`,
+  intro: `In Lesson 5.1, we established the logic of hypothesis testing. We learned how to formulate a null and alternative hypothesis, interpret a p-value, and make a decision using a preselected significance level.
+
+<p>Now we will apply that framework to two common business questions:</p>
+
+<ul>
+<li>Is the population mean of a numerical variable different from a specified benchmark?</li>
+<li>Is the population proportion of observations with a particular outcome different from a specified benchmark?</li>
+</ul>
+
+<p>These questions require different statistical procedures. A one-sample t-test is commonly used to test a population mean when the population standard deviation is unknown. A one-sample exact binomial test can be used to test a population proportion when observations represent independent Bernoulli trials.</p>
+
+<p>We will use TradeFlow's completed-delivery data to investigate average transit time and the proportion of deliveries completed within an illustrative five-day target.</p>
+
+<p><b>Important data note:</b> five days is an illustrative benchmark for this lesson. It is not being presented as TradeFlow's actual service-level agreement. The dataset contains completed deliveries, and conclusions about all deliveries or future performance require consideration of missing, incomplete, delayed or otherwise unobserved records.</p>`,
   steps: [
     {
       type: 'explain',
-      title: 'Choose the test based on the parameter you are investigating',
-      body: `<p>Before selecting a statistical test, identify the population parameter in the research question. The test must match the type of quantity being studied.</p>
+      title: 'Choosing the right one-sample test',
+      body: `<p>A one-sample hypothesis test compares a sample statistic with a specified population benchmark.</p>
+
+<p>The correct test depends on the type of outcome and the assumptions that can reasonably be made about the data.</p>
+
 <table class="mini">
-<tr><th>Question</th><th>Parameter</th><th>Typical test</th></tr>
-<tr><td>Is average delivery time five days?</td><td>Population mean μ</td><td>One-sample t-test</td></tr>
-<tr><td>Is the proportion of deliveries within five days 80%?</td><td>Population proportion p</td><td>One-proportion test</td></tr>
-<tr><td>Is the average delivery time different between two independent groups?</td><td>Difference in population means</td><td>Independent-samples t-test</td></tr>
-<tr><td>Did the same warehouses improve after a change?</td><td>Mean of paired differences</td><td>Paired t-test</td></tr>
+<tr><th>Research question</th><th>Data type</th><th>Common test</th></tr>
+<tr><td>Is average delivery time different from five days?</td><td>Numerical</td><td>One-sample t-test</td></tr>
+<tr><td>Is the share of deliveries completed within five days different from 80%?</td><td>Binary outcome</td><td>One-sample binomial test</td></tr>
 </table>
-<p>A mean describes the average value of a numerical variable. A proportion describes the share of observations that satisfy a binary condition.</p>
-<p>For example, delivery time in days is numerical, so a question about its average concerns μ. Whether a delivery took five days or less is a yes/no outcome, so a question about the share meeting that threshold concerns p.</p>
-<p>Do not choose a test because its name looks familiar. Start with the research question, identify the parameter, and then choose a method whose assumptions match the data and sampling design.</p>
-<div class="callout work"><b>TradeFlow example:</b> “Is the average delivery time different from five days?” is a question about a mean. “Is at least 80% of eligible deliveries completed within five days?” is a question about a proportion. These are not interchangeable analyses, even though they use the same delivery records.</div>`
+
+<p>A numerical variable can take a range of values, such as delivery time, order value or processing duration. A binary outcome has two possible categories, such as on-time versus late, approved versus rejected, or paid versus unpaid.</p>
+
+<p><b>Why not use the same test for both?</b></p>
+
+<p>A mean describes the centre of a numerical distribution. A proportion describes the fraction of observations belonging to a particular category.</p>
+
+<p>Their sampling distributions and standard errors are different. Consequently, the statistical procedures used to evaluate them are also different.</p>
+
+<p>For the mean, we will use the t-distribution to account for the fact that the population standard deviation is unknown and must be estimated from the sample.</p>
+
+<p>For the proportion, we will use the binomial distribution. The exact binomial test calculates probabilities directly from the binomial model instead of relying on a large-sample normal approximation.</p>
+
+<p>Choosing a statistical test is not a matter of selecting whichever Python function is easiest to run. It begins with understanding the question, the parameter being tested, the measurement scale and the assumptions behind the method.</p>`
     },
     {
       type: 'explain',
-      title: 'The one-sample t-test: testing a population mean',
-      body: `<p>A <b>one-sample t-test</b> evaluates whether the population mean is equal to a specified reference value.</p>
-<p>For the delivery-time example, we can define:</p>
-<ul>
-<li>H₀: μ = 5 days</li>
-<li>Hₐ: μ ≠ 5 days</li>
-</ul>
-<p>The test statistic is:</p>
+      title: 'The one-sample t-test for a population mean',
+      body: `<p>Suppose TradeFlow wants to investigate whether its population mean delivery time differs from five days.</p>
+
+<p>Let μ represent the population mean transit time. The hypotheses for a two-tailed test are:</p>
+
+<p><b>H₀: μ = 5</b></p>
+<p><b>H₁: μ ≠ 5</b></p>
+
+<p>The one-sample t-test calculates the test statistic:</p>
+
 <p><b>t = (x̄ − μ₀) / (s / √n)</b></p>
-<p>The statistic compares the difference between the observed sample mean and the hypothesised population mean with the estimated standard error of the sample mean.</p>
-<p>We use the t distribution rather than the standard normal distribution because the population standard deviation σ is generally unknown. We estimate it using the sample standard deviation s, which introduces additional uncertainty.</p>
-<p>The test has n−1 degrees of freedom. Under the null hypothesis and the model assumptions, the t-statistic follows a Student's t distribution with those degrees of freedom.</p>
-<p>In SciPy, <code>stats.ttest_1samp()</code> performs this calculation. Its <code>popmean</code> argument is the value specified by the null hypothesis. The function returns a result containing the test statistic and p-value.</p>
-<p>The function does not decide whether the result matters to TradeFlow. It calculates the statistical evidence under the test model. The analyst remains responsible for checking assumptions and interpreting the result.</p>`
+
+<p>Here, μ₀ is the benchmark value specified in the null hypothesis.</p>
+
+<p>The denominator is the estimated standard error of the sample mean. It measures how much the sample mean is expected to vary across repeated samples under the model.</p>
+
+<p>The test statistic is compared with a Student's t-distribution with n − 1 degrees of freedom.</p>
+
+<p><b>Why use a t-distribution?</b></p>
+
+<p>In many practical investigations, the population standard deviation σ is unknown. We therefore estimate it using the sample standard deviation s.</p>
+
+<p>Using an estimated standard deviation introduces additional uncertainty. The t-distribution accounts for that uncertainty when the assumptions of the one-sample t-test are appropriate.</p>
+
+<p>For large degrees of freedom, the t-distribution becomes similar to the standard normal distribution. For smaller samples, it has heavier tails.</p>
+
+<p><b>When is a one-sample t-test appropriate?</b></p>
+
+<ul>
+<li>The outcome is numerical and the sample observations are independent.</li>
+<li>The sample is obtained in a way that supports the population inference being made.</li>
+<li>The population distribution is approximately normal, particularly when the sample is small, or the sample is large enough for the sampling distribution of the mean to be reasonably approximated by a normal distribution.</li>
+<li>The data do not contain extreme outliers that make the sample mean and standard deviation misleading.</li>
+</ul>
+
+<p>The t-test is often reasonably robust to moderate departures from normality when the sample is sufficiently large. However, a large sample does not repair selection bias, dependence between observations or serious data-quality problems.</p>
+
+<p><b>Important:</b> the test does not require the observed sample itself to look perfectly normal in every situation. What matters is whether the sampling distribution of the mean is adequately represented by the t-based procedure. For small samples, strong skewness and extreme outliers can make the test unreliable.</p>`
     },
     {
       type: 'explain',
-      title: 'Assumptions of the one-sample t-test',
-      body: `<p>A statistical test is not automatically valid just because Python returns a p-value. We must consider whether the assumptions behind the method are reasonable.</p>
-<p>The main assumptions and conditions for a conventional one-sample t-test are:</p>
-<ol>
-<li><b>Quantitative observations:</b> the variable should be numerical and meaningful for calculating a mean. Delivery time in days is numerical.</li>
-<li><b>Independence:</b> observations should be independent, or the sampling design must be accounted for. If several deliveries are affected by the same warehouse outage, they may share a common cause and be correlated.</li>
-<li><b>Representative sampling:</b> the sample should provide a defensible basis for learning about the target population. A large convenience sample can still be biased.</li>
-<li><b>Distributional condition:</b> for a small sample, the population distribution of the observations should be reasonably close to normal and should not contain severe outliers. With larger samples, the sampling distribution of the mean often becomes more nearly normal, but extreme skewness, dependence and influential observations still deserve attention.</li>
-</ol>
-<p>The t-test is reasonably robust to moderate departures from normality in many settings, particularly with larger samples. That does not mean that sample size makes every problem disappear.</p>
-<p>For example, if a dataset contains only deliveries that were completed and excludes deliveries still in transit, the resulting mean describes completed deliveries in the extract. It may not describe the average time for all orders initiated during the same period.</p>
-<div class="callout watch"><b>TradeFlow data limitation:</b> the dataset contains deliveries without a recorded delivery date. The variable <code>transit</code> includes only records with valid dispatch and delivery dates and nonnegative transit times. Any inference from this variable must be described as applying to the eligible recorded deliveries, not automatically to every order or every delivery attempt.</div>`
+      title: 'Run a one-sample t-test with SciPy',
+      body: `<p>Python's SciPy library provides the <code>ttest_1samp()</code> function for a one-sample t-test.</p>
+
+<p>Its basic structure is:</p>
+
+<pre><code>stats.ttest_1samp(
+    sample,
+    popmean=benchmark,
+    alternative="two-sided"
+)</code></pre>
+
+<p>Let's understand the arguments:</p>
+
+<ul>
+<li><b>sample:</b> the numerical observations being tested.</li>
+<li><b>popmean:</b> the population mean specified by the null hypothesis.</li>
+<li><b>alternative:</b> the alternative hypothesis. It can be <code>"two-sided"</code>, <code>"greater"</code> or <code>"less"</code>.</li>
+</ul>
+
+<p>The function returns a result containing the t-statistic and p-value.</p>
+
+<p>For example, if the research question is whether average delivery time is greater than five days, use:</p>
+
+<pre><code>stats.ttest_1samp(
+    transit,
+    popmean=5,
+    alternative="greater"
+)</code></pre>
+
+<p>This is a right-tailed test. It evaluates evidence that the population mean exceeds five days.</p>
+
+<p>If the question is whether the mean differs from five days in either direction, use <code>alternative="two-sided"</code>.</p>
+
+<p>If the question is whether the mean is lower than five days, use <code>alternative="less"</code>.</p>
+
+<p><b>Do not choose the alternative argument after looking at the result.</b> The research question determines the direction before the test is conducted.</p>
+
+<p><b>What does the output mean?</b></p>
+
+<ul>
+<li><b>Statistic:</b> the calculated t-statistic. Its sign indicates whether the sample mean is above or below the benchmark.</li>
+<li><b>pvalue:</b> the probability, under the null hypothesis and test assumptions, of obtaining a test statistic at least as extreme as the observed statistic in the specified direction.</li>
+<li><b>df:</b> degrees of freedom, which for a one-sample t-test equal n − 1.</li>
+</ul>
+
+<p>The p-value must be interpreted using the significance level chosen before the analysis. The statistic alone does not determine whether a result is statistically significant.</p>`
     },
     {
       type: 'try',
-      title: 'Run a one-sample t-test on delivery times',
-      body: `<p>Test whether the mean transit time among eligible recorded deliveries differs from the illustrative five-day benchmark.</p>
-<p>We specify a two-sided alternative because we want to detect either an increase or a decrease in the population mean.</p>
-<p><b>Python connection:</b></p>
-<ul>
-<li><code>transit.to_numpy()</code> converts the Pandas Series into a NumPy array.</li>
-<li><code>stats.ttest_1samp()</code> runs the one-sample t-test.</li>
-<li><code>popmean=5</code> supplies the reference value in the null hypothesis.</li>
-<li><code>alternative="two-sided"</code> asks whether the population mean differs in either direction.</li>
-<li><code>result.statistic</code> retrieves the t-statistic.</li>
-<li><code>result.pvalue</code> retrieves the p-value.</li>
-</ul>
-<p>We also calculate the sample mean and the difference from the benchmark. These are important because a p-value alone does not tell management the size or direction of the observed difference.</p>`,
-      code: `sample = transit.to_numpy()
+      title: 'Demonstration: test the mean delivery time',
+      body: `<p>Let's investigate whether the population mean delivery time differs from five days.</p>
 
-result = stats.ttest_1samp(
-    sample,
+<p>We will first examine the sample size, mean and standard deviation. We will then conduct a two-tailed one-sample t-test.</p>
+
+<p>Notice that the code uses the <code>transit</code> series created in the lesson setup. The test is applied only to valid, non-negative transit times calculated from records with usable dispatch and delivery dates.</p>`,
+      code: `# Describe the sample.
+sample_size = len(transit)
+sample_mean = transit.mean()
+sample_std = transit.std(ddof=1)
+
+print("Number of observations:", sample_size)
+print("Sample mean:", round(sample_mean, 3), "days")
+print("Sample standard deviation:", round(sample_std, 3), "days")
+
+# Test whether the population mean differs from five days.
+test_result = stats.ttest_1samp(
+    transit,
     popmean=5,
     alternative="two-sided"
 )
 
-sample_mean = sample.mean()
-difference = sample_mean - 5
+print("\\nOne-sample t-test")
+print("t-statistic:", round(test_result.statistic, 4))
+print("p-value:", round(test_result.pvalue, 6))
+print("Degrees of freedom:", test_result.df)`,
+      explanation: `<p><b>Step 1: Describe the sample.</b></p>
+<p><code>len(transit)</code> returns the number of valid observations. The mean and sample standard deviation describe the observed delivery times.</p>
 
-print("Sample size:", len(sample))
-print("Sample mean:", round(sample_mean, 4), "days")
-print("Difference from benchmark:", round(difference, 4), "days")
-print("t-statistic:", round(result.statistic, 5))
-print("p-value:", result.pvalue)`
+<p><b>Step 2: Run the test.</b></p>
+<p><code>stats.ttest_1samp()</code> compares the sample mean with the benchmark of five days. The <code>alternative="two-sided"</code> argument means that differences in either direction count as evidence against the null hypothesis.</p>
+
+<p><b>Step 3: Interpret the output.</b></p>
+<p>The t-statistic measures the difference from five days in estimated standard-error units. The p-value measures how unusual a result at least this extreme would be under the null model.</p>
+
+<p>The actual conclusion must be based on the output produced by your dataset. Do not assume the result is significant simply because the sample mean is above five days.</p>`
     },
     {
       type: 'explain',
-      title: 'Interpret the test without overstating the conclusion',
-      body: `<p>Suppose the p-value from a test is smaller than the chosen significance level of 0.05. The conventional decision is to reject H₀.</p>
-<p>A careful interpretation would be:</p>
-<p><b>“The observed delivery-time data provide statistically significant evidence that the population mean transit time among the target population differs from five days, under the assumptions of the one-sample t-test.”</b></p>
-<p>That sentence is deliberately precise. It identifies the evidence, the parameter, the direction covered by the alternative, the reference value and the assumptions.</p>
-<p>It does not say that every delivery takes more than five days. It does not say that the process is inefficient. It does not establish why the mean differs from five days.</p>
-<p>If the p-value is greater than 0.05, the appropriate conclusion is that the test did not provide sufficient evidence to reject H₀ at the 5% level. It is not correct to claim that the mean has been proved equal to five days.</p>
-<p>In either case, report the observed sample mean and its difference from the benchmark. An estimate of 5.02 days and an estimate of 7.00 days may both produce statistically significant tests in sufficiently large samples, but they have very different operational implications.</p>
-<div class="callout work"><b>Analyst's responsibility:</b> translate the statistical result into a business statement without adding a causal explanation or an operational conclusion that the test did not establish.</div>`
+      title: 'One-tailed and two-tailed tests in practice',
+      body: `<p>The alternative hypothesis determines which part of the reference distribution contributes to the p-value.</p>
+
+<p>For a two-tailed test, evidence in either direction matters. For a one-tailed test, evidence matters in one specified direction.</p>
+
+<p>Consider the following three questions:</p>
+
+<table class="mini">
+<tr><th>Business question</th><th>Alternative hypothesis</th><th>SciPy argument</th></tr>
+<tr><td>Is the mean different from five days?</td><td>μ ≠ 5</td><td><code>two-sided</code></td></tr>
+<tr><td>Is the mean greater than five days?</td><td>μ &gt; 5</td><td><code>greater</code></td></tr>
+<tr><td>Is the mean less than five days?</td><td>μ &lt; 5</td><td><code>less</code></td></tr>
+</table>
+
+<p>Suppose the observed t-statistic is positive. That means the sample mean is above the benchmark.</p>
+
+<p>For a right-tailed test, a positive t-statistic is in the direction of the alternative. For a left-tailed test, the same positive statistic is in the opposite direction and therefore does not provide evidence for the stated alternative.</p>
+
+<p><b>Why can a one-tailed test produce a smaller p-value?</b></p>
+
+<p>A two-tailed test considers extreme results on both sides of the reference distribution. A one-tailed test considers only the specified direction. When the observed statistic is in that direction, the one-tailed p-value can be smaller.</p>
+
+<p>However, a one-tailed test is not a shortcut for obtaining statistical significance. It is justified only when the research question genuinely concerns one direction and an effect in the opposite direction would not count as evidence for the stated claim.</p>
+
+<p>For example, if management is investigating whether delivery times have become worse, a right-tailed test may be appropriate. If management wants to know whether delivery times have changed in either direction, a two-tailed test is more appropriate.</p>
+
+<p><b>Pre-specification is essential.</b> The choice between a one-tailed and two-tailed test should be made before examining the observed result. Choosing the direction afterwards inflates the false-positive risk.</p>`
+    },
+    {
+      type: 'check',
+      title: 'Check your understanding: choose the correct alternative',
+      question: 'A logistics analyst wants to test whether average delivery time has increased above a benchmark of five days. Which SciPy argument is appropriate?',
+      options: [
+        'alternative="less"',
+        'alternative="greater"',
+        'alternative="two-sided"',
+        'alternative="equal"'
+      ],
+      answer: 1,
+      why: [
+        'The less alternative tests whether the population mean is below the benchmark.',
+        'Correct. The question asks whether the population mean is greater than five days, so the right-tailed alternative is appropriate.',
+        'The two-sided alternative tests for a difference in either direction.',
+        'Equal is not a valid alternative argument for this SciPy test.'
+      ]
     },
     {
       type: 'explain',
-      title: 'Testing a population proportion',
-      body: `<p>Now consider a different question: is 80% of TradeFlow's eligible recorded deliveries completed within five days?</p>
-<p>This is not a question about the average number of days. It is a question about the proportion of observations meeting a yes/no condition.</p>
-<p>Define a success as a recorded delivery with a transit time of five days or less. For each eligible delivery:</p>
+      title: 'Testing a population proportion with the binomial distribution',
+      body: `<p>Not every business question concerns an average. Many operational questions concern a proportion.</p>
+
+<p>Suppose TradeFlow wants to investigate whether at least 80% of its deliveries are completed within five days. We can create a binary outcome for each delivery:</p>
+
 <ul>
-<li>Success = 1 if transit time is at most five days.</li>
-<li>Failure = 0 if transit time is greater than five days.</li>
+<li>1 means the delivery took five days or fewer.</li>
+<li>0 means the delivery took more than five days.</li>
 </ul>
-<p>If x successes are observed among n eligible deliveries, the sample proportion is:</p>
+
+<p>Let p represent the true population proportion of deliveries completed within five days.</p>
+
+<p>For an illustrative two-sided test against an 80% benchmark:</p>
+
+<p><b>H₀: p = 0.80</b></p>
+<p><b>H₁: p ≠ 0.80</b></p>
+
+<p>The sample proportion is:</p>
+
 <p><b>p̂ = x / n</b></p>
-<p>To test a benchmark of 80%, the hypotheses can be:</p>
+
+<p>Where:</p>
+
 <ul>
-<li>H₀: p = 0.80</li>
-<li>Hₐ: p ≠ 0.80</li>
+<li><b>x:</b> the number of observations classified as successes.</li>
+<li><b>n:</b> the total number of valid observations.</li>
+<li><b>p̂:</b> the observed sample proportion.</li>
 </ul>
-<p>The observed count of successes is modelled using a binomial distribution when observations are independent and each observation has the same success probability p.</p>
-<p>Under H₀, the number of successes X follows:</p>
-<p><b>X ~ Binomial(n, 0.80)</b></p>
-<p>This gives us a direct way to calculate how unusual the observed number of successes would be if the population proportion were really 80%.</p>
-<p>The 80% target is an illustrative teaching benchmark. It should not be interpreted as a verified TradeFlow service commitment.</p>`
+
+<p>For example, if 160 out of 200 deliveries meet the illustrative target, the sample proportion is 160 / 200 = 0.80, or 80%.</p>
+
+<p>However, observing a sample proportion of 80% does not prove that the population proportion is exactly 80%. Another sample could produce a different proportion even if the population proportion were unchanged.</p>
+
+<p><b>Why the binomial distribution?</b></p>
+
+<p>If each observation is an independent trial with the same probability p of success, the number of successes X in n trials follows a binomial distribution:</p>
+
+<p><b>X ~ Binomial(n, p)</b></p>
+
+<p>The probability of observing exactly x successes is:</p>
+
+<p><b>P(X = x) = C(n, x) pˣ (1 − p)ⁿ⁻ˣ</b></p>
+
+<p>The binomial model gives us a way to calculate how likely an observed number of successes would be if the null proportion were true.</p>
+
+<p><b>When is the binomial model appropriate?</b></p>
+
+<ul>
+<li>Each observation can be classified as a success or failure.</li>
+<li>The number of trials is fixed or clearly defined.</li>
+<li>The observations are independent, or independence is a reasonable approximation.</li>
+<li>The probability of success is constant across the trials under the model.</li>
+</ul>
+
+<p>These assumptions deserve attention. Deliveries from the same warehouse, route or period may share conditions and therefore may not be independent. If delivery performance changes substantially over time or across locations, a simple binomial test may not adequately represent the data-generating process.</p>`
     },
     {
       type: 'explain',
-      title: 'The exact binomial test',
-      body: `<p>For a one-proportion hypothesis test, one option is the <b>exact binomial test</b>.</p>
-<p>Under the null hypothesis, the probability of observing exactly x successes out of n independent trials is:</p>
-<p><b>P(X = x) = C(n, x) p₀ˣ (1 − p₀)ⁿ⁻ˣ</b></p>
-<p>Here:</p>
-<ul>
-<li><b>n:</b> the number of eligible observations.</li>
-<li><b>x:</b> the number of observed successes.</li>
-<li><b>p₀:</b> the success probability specified by H₀.</li>
-<li><b>C(n, x):</b> the number of ways to choose x successes from n observations.</li>
-</ul>
-<p>The exact binomial test uses the binomial distribution to calculate a p-value for the observed count. It does not rely on the normal approximation to the sampling distribution of the sample proportion.</p>
-<p>In SciPy, <code>stats.binomtest()</code> performs this test. We provide the observed success count, total number of observations, hypothesised probability and alternative direction.</p>
-<p>The exact method is particularly useful when the sample is small or the hypothesised proportion is near zero or one, where a simple normal approximation may be unreliable.</p>
-<p>For very large samples, exact calculations can be computationally more demanding, and the difference between exact and suitable approximate methods may be small. The choice should be based on the problem and the required accuracy.</p>
-<div class="callout watch"><b>Independence still matters:</b> the word “exact” refers to the probability calculation under the binomial model. It does not mean the test is immune to biased sampling, clustered observations, changing success probabilities or other violations of the model.</div>`
-    },
-    {
-      type: 'try',
-      title: 'Test whether the five-day completion proportion is 80%',
-      body: `<p>Classify each eligible delivery as meeting or missing the illustrative five-day threshold. Count the successes, calculate the observed sample proportion, and perform a two-sided exact binomial test of p = 0.80.</p>
-<p><b>Python connection:</b></p>
-<ul>
-<li><code>sample <= 5</code> creates a Boolean array.</li>
-<li><code>.sum()</code> counts the True values because True is treated as 1 and False as 0 in a numerical sum.</li>
-<li><code>len(sample)</code> returns the number of eligible observations.</li>
-<li><code>stats.binomtest()</code> calculates the exact test.</li>
-<li><code>result.proportion_estimate</code> gives the observed sample proportion.</li>
-</ul>
-<p>Keep the observed proportion separate from the p-value. The observed proportion describes the data; the p-value describes how unusual the count would be under the null model.</p>`,
-      code: `sample = transit.to_numpy()
+      title: 'The exact binomial test with SciPy',
+      body: `<p>SciPy provides <code>stats.binomtest()</code> for an exact one-sample binomial test.</p>
 
-on_time = sample <= 5
+<p>Its basic structure is:</p>
 
-successes = int(on_time.sum())
-n = len(sample)
-p_hat = successes / n
+<pre><code>stats.binomtest(
+    k=successes,
+    n=trials,
+    p=benchmark,
+    alternative="two-sided"
+)</code></pre>
+
+<p>The arguments are:</p>
+
+<ul>
+<li><b>k:</b> the observed number of successes.</li>
+<li><b>n:</b> the total number of trials.</li>
+<li><b>p:</b> the success probability specified by the null hypothesis.</li>
+<li><b>alternative:</b> the direction of the alternative hypothesis.</li>
+</ul>
+
+<p>For the illustrative five-day target, we can define success as a delivery taking five days or fewer.</p>
+
+<p>In Python:</p>
+
+<pre><code>on_time = transit <= 5
+successes = on_time.sum()
+trials = len(on_time)
 
 result = stats.binomtest(
     k=successes,
-    n=n,
+    n=trials,
     p=0.80,
     alternative="two-sided"
-)
+)</code></pre>
 
-print("Eligible deliveries:", n)
-print("Deliveries within five days:", successes)
-print("Observed proportion:", round(p_hat, 4))
-print("Observed percentage:", round(p_hat * 100, 2), "%")
-print("Exact binomial p-value:", result.pvalue)`
-    },
-    {
-      type: 'explain',
-      title: 'Normal approximation versus exact binomial testing',
-      body: `<p>You may also encounter a one-proportion z-test. It uses a normal approximation to the binomial distribution.</p>
-<p>Under H₀: p = p₀, the test statistic is:</p>
-<p><b>z = (p̂ − p₀) / √(p₀(1 − p₀) / n)</b></p>
-<p>Notice that the standard error uses p₀, the hypothesised proportion, rather than p̂. This is because the test statistic is calculated under the null hypothesis.</p>
-<p>This differs from the common confidence-interval standard error for a proportion, which uses the observed sample proportion p̂.</p>
-<p>The normal approximation is most reliable when the expected numbers of successes and failures under H₀ are sufficiently large. A common introductory rule checks that:</p>
-<ul>
-<li>n × p₀ is at least 10.</li>
-<li>n × (1 − p₀) is at least 10.</li>
-</ul>
-<p>These are practical guidelines, not universal guarantees. The exact binomial test avoids this particular normal-approximation requirement, although it still depends on the binomial model.</p>
-<p>In this course, we use the exact binomial test for the main analysis because it is straightforward to implement with SciPy and makes the probability model explicit.</p>`
+<p><b>Why is this called an exact test?</b></p>
+
+<p>It calculates the p-value using the binomial probability model rather than relying on a normal approximation to the binomial distribution.</p>
+
+<p>Normal approximations can be useful for sufficiently large samples and suitable probability values. But they can be inaccurate when the sample is small or the benchmark proportion is close to zero or one.</p>
+
+<p>The exact binomial test avoids that particular approximation. However, it does not eliminate the need for the binomial assumptions. An exact calculation under an inappropriate model can still lead to a misleading conclusion.</p>
+
+<p><b>Interpreting the result</b></p>
+
+<p>The result contains the observed sample proportion and a p-value. SciPy also provides a method for calculating a confidence interval for the population proportion.</p>
+
+<p>A statistically significant result against p = 0.80 indicates evidence that the population proportion differs from 80% under the binomial model. It does not, by itself, explain why the proportion differs or establish whether the difference is operationally important.</p>`
     },
     {
       type: 'try',
-      title: 'Calculate the one-proportion z-statistic',
-      body: `<p>Calculate the normal-approximation z-statistic for the same 80% benchmark. Compare it with the exact binomial result from the previous demonstration.</p>
-<p>We use the null standard error:</p>
-<p><b>√(p₀(1 − p₀) / n)</b></p>
-<p>This is the standard error under H₀. Do not replace p₀ with the observed proportion in this test calculation.</p>
-<p>The z-statistic tells us how many null-standard-error units separate the observed proportion from the hypothesised proportion. It is not itself a p-value.</p>`,
-      code: `sample = transit.to_numpy()
+      title: 'Demonstration: test the proportion of deliveries completed within five days',
+      body: `<p>We will now apply an exact binomial test to the valid transit-time observations.</p>
 
-successes = int((sample <= 5).sum())
-n = len(sample)
+<p>For this lesson, a delivery is classified as meeting the illustrative target when its transit time is five days or fewer.</p>
 
-p_hat = successes / n
-p_0 = 0.80
+<p>We will test whether the population proportion differs from 80%. Remember that this is an educational benchmark, not an assertion about TradeFlow's actual contractual service target.</p>`,
+      code: `# Define success as a delivery taking five days or fewer.
+on_time = transit <= 5
 
-null_se = np.sqrt(p_0 * (1 - p_0) / n)
-z_statistic = (p_hat - p_0) / null_se
+# Count successes and total trials.
+successes = int(on_time.sum())
+trials = len(on_time)
 
-p_value_normal = 2 * stats.norm.sf(abs(z_statistic))
+# Calculate the observed sample proportion.
+sample_proportion = successes / trials
 
-exact_result = stats.binomtest(
+print("Deliveries meeting the illustrative target:", successes)
+print("Total valid deliveries:", trials)
+print("Observed proportion:", round(sample_proportion, 4))
+
+# Exact binomial test against an 80% benchmark.
+binomial_result = stats.binomtest(
     k=successes,
-    n=n,
-    p=p_0,
-    alternative="two-sided"
-)
-
-print("Observed proportion:", round(p_hat, 4))
-print("Null standard error:", round(null_se, 5))
-print("z-statistic:", round(z_statistic, 5))
-print("Normal-approximation p-value:", p_value_normal)
-print("Exact binomial p-value:", exact_result.pvalue)`
-    },
-    {
-      type: 'explain',
-      title: 'How hypothesis tests and confidence intervals work together',
-      body: `<p>Hypothesis tests and confidence intervals are closely connected. They are two ways of using sample data to reason about a population parameter.</p>
-<p>For a two-sided test at significance level α = 0.05, the corresponding 95% confidence interval and test generally give matching conclusions when they use the same model and method.</p>
-<ul>
-<li>If the null value is outside the 95% confidence interval, the corresponding two-sided test rejects H₀ at the 5% level.</li>
-<li>If the null value is inside the 95% confidence interval, the corresponding test does not reject H₀ at the 5% level.</li>
-</ul>
-<p>For example, suppose the null hypothesis is μ = 5 days. If a valid 95% confidence interval for μ is 5.2 to 5.8 days, the value five is outside the interval. The corresponding two-sided test at α = 0.05 would reject H₀.</p>
-<p>If the interval is 4.7 to 5.5 days, the value five is inside the interval. The corresponding test would fail to reject H₀ at the 5% level.</p>
-<p>The confidence interval gives more information than a simple reject/fail-to-reject decision. It shows a range of parameter values compatible with the data and method, making it easier to assess the size and precision of the estimated effect.</p>
-<div class="callout work"><b>Good reporting practice:</b> report the estimated difference, a confidence interval and the p-value. This gives readers information about direction, magnitude, uncertainty and statistical evidence.</div>
-<p>Remember that the correspondence depends on matching the test and interval methods. An exact binomial test should be paired with a compatible binomial confidence interval, not automatically with a Wald interval from a different approximation.</p>`
-    },
-    {
-      id: 'st-5-2-c1',
-      type: 'check',
-      title: 'Which test is appropriate for a question about average delivery time?',
-      body: `<p>The analyst wants to compare the population mean delivery time with a five-day benchmark.</p>`,
-      options: [
-        'A one-sample t-test',
-        'An exact binomial test',
-        'A chi-square test of independence',
-        'A test of a population proportion'
-      ],
-      answer: 0,
-      why: [
-        'Correct. The question concerns a numerical population mean, so a one-sample t-test is an appropriate method when its assumptions are reasonable.',
-        'A binomial test is designed for a count of successes in binary trials, not a numerical mean.',
-        'A chi-square test of independence examines association between categorical variables.',
-        'A proportion test answers a question about the share of observations meeting a binary condition.'
-      ]
-    },
-    {
-      id: 'st-5-2-c2',
-      type: 'check',
-      title: 'Why does the exact binomial test not require a normal approximation?',
-      body: `<p>Consider a test of a population proportion based on independent binary outcomes.</p>`,
-      options: [
-        'It assumes every observation has a different success probability',
-        'It calculates probabilities directly from the binomial distribution',
-        'It removes the need for a representative sample',
-        'It automatically corrects for dependence between observations'
-      ],
-      answer: 1,
-      why: [
-        'The standard binomial model assumes a common success probability for the trials.',
-        'Correct. The exact binomial test uses the binomial probability model directly rather than relying on a normal approximation.',
-        'The test does not correct biased sampling. Representativeness remains a design issue.',
-        'The ordinary binomial test assumes independent trials and does not automatically correct dependence.'
-      ]
-    },
-    {
-      id: 'st-5-2-c3',
-      type: 'check',
-      title: 'A 95% confidence interval contains the null value. What does that imply?',
-      body: `<p>Assume it is a two-sided 95% interval constructed using the same method as a 5% hypothesis test.</p>`,
-      options: [
-        'The null hypothesis has been proved true',
-        'The corresponding test would fail to reject the null hypothesis at the 5% level',
-        'The alternative hypothesis has a 95% probability of being false',
-        'The sample contains 95% of the population'
-      ],
-      answer: 1,
-      why: [
-        'A confidence interval containing the null value does not prove that the null hypothesis is true.',
-        'Correct. With matching methods, a null value inside the 95% interval corresponds to a two-sided test that does not reject at the 5% level.',
-        'A confidence interval does not assign a probability to the truth of the alternative hypothesis.',
-        'A confidence interval concerns a population parameter, not the percentage of population records included in the sample.'
-      ]
-    },
-    {
-      type: 'exercise',
-      id: 'st-5-2-ex1',
-      title: 'Your turn: run a one-sample t-test',
-      body: `<p>Use the valid delivery-time observations to test H₀: μ = 5 against Hₐ: μ ≠ 5.</p>
-<p>Run <code>stats.ttest_1samp()</code>, store the result as <code>mean_test</code>, and print its test statistic and p-value to five decimal places.</p>
-<p>Also print the observed sample mean. This is important because the p-value does not tell us the direction or practical size of the difference.</p>`,
-      starter: `# Run a one-sample t-test on transit.
-# Store the returned result as mean_test.`,
-      hints: [
-        'Convert transit to a NumPy array, then pass it to stats.ttest_1samp with popmean=5.',
-        'sample = transit.to_numpy()\nmean_test = stats.ttest_1samp(sample, popmean=5, alternative="two-sided")\nprint("Sample mean:", round(sample.mean(), 4))\nprint("t-statistic:", round(mean_test.statistic, 5))\nprint("p-value:", round(mean_test.pvalue, 5))'
-      ],
-      solution: `sample = transit.to_numpy()
-
-mean_test = stats.ttest_1samp(
-    sample,
-    popmean=5,
-    alternative="two-sided"
-)
-
-print("Sample mean:", round(sample.mean(), 4))
-print("t-statistic:", round(mean_test.statistic, 5))
-print("p-value:", round(mean_test.pvalue, 5))`,
-      ordered: true
-    },
-    {
-      type: 'exercise',
-      id: 'st-5-2-ex2',
-      title: 'Your turn: calculate the effect relative to the benchmark',
-      body: `<p>Calculate the difference between the observed mean delivery time and the five-day benchmark.</p>
-<p>Store the result as <code>mean_difference</code>. A positive value means the observed mean is above five days; a negative value means it is below five days.</p>
-<p>Print the difference to four decimal places and label the unit as days. Do not use the p-value as a substitute for this effect estimate.</p>`,
-      starter: `# Calculate the observed mean minus the benchmark.
-# Store the difference as mean_difference.`,
-      hints: [
-        'Calculate transit.mean(), then subtract 5.',
-        'sample = transit.to_numpy()\nmean_difference = sample.mean() - 5\nprint("Difference from five-day benchmark:", round(mean_difference, 4), "days")'
-      ],
-      solution: `sample = transit.to_numpy()
-
-mean_difference = sample.mean() - 5
-
-print(
-    "Difference from five-day benchmark:",
-    round(mean_difference, 4),
-    "days"
-)`,
-      ordered: true
-    },
-    {
-      type: 'exercise',
-      id: 'st-5-2-ex3',
-      title: 'Your turn: run an exact binomial test',
-      body: `<p>Define a success as a delivery completed within five days. Test H₀: p = 0.80 against Hₐ: p ≠ 0.80 using the exact binomial test.</p>
-<p>Store the result as <code>proportion_test</code>. Print the number of successes, the total number of eligible observations, the observed proportion and the exact p-value.</p>
-<p>Use <code>stats.binomtest()</code>. Do not substitute the sample proportion for the hypothesised probability in the test's <code>p</code> argument.</p>`,
-      starter: `# Count deliveries within five days.
-# Run the exact binomial test and print its result.`,
-      hints: [
-        'Create a Boolean condition, sum it to count successes, and use len(sample) as n.',
-        'sample = transit.to_numpy()\nsuccesses = int((sample <= 5).sum())\nn = len(sample)\np_hat = successes / n\nproportion_test = stats.binomtest(successes, n, p=0.80, alternative="two-sided")\nprint("Successes:", successes)\nprint("Total:", n)\nprint("Observed proportion:", round(p_hat, 4))\nprint("Exact p-value:", proportion_test.pvalue)'
-      ],
-      solution: `sample = transit.to_numpy()
-
-successes = int((sample <= 5).sum())
-n = len(sample)
-p_hat = successes / n
-
-proportion_test = stats.binomtest(
-    successes,
-    n,
+    n=trials,
     p=0.80,
     alternative="two-sided"
 )
 
-print("Successes:", successes)
-print("Total:", n)
-print("Observed proportion:", round(p_hat, 4))
-print("Exact p-value:", proportion_test.pvalue)`,
+print("\\nExact binomial test")
+print("p-value:", round(binomial_result.pvalue, 6))
+print("Estimated proportion:", round(binomial_result.statistic, 4))
+
+# Calculate a 95% confidence interval.
+confidence_interval = binomial_result.proportion_ci(
+    confidence_level=0.95,
+    method="exact"
+)
+
+print(
+    "95% confidence interval:",
+    round(confidence_interval.low, 4),
+    "to",
+    round(confidence_interval.high, 4)
+)`,
+      explanation: `<p><b>Step 1: Define success.</b></p>
+<p><code>transit <= 5</code> creates a Boolean Series. Each valid delivery is classified as either meeting the illustrative target or not meeting it.</p>
+
+<p><b>Step 2: Count successes and trials.</b></p>
+<p><code>on_time.sum()</code> counts the True values because Python treats True as 1 and False as 0 in numerical operations. <code>len(on_time)</code> returns the total number of observations.</p>
+
+<p><b>Step 3: Calculate the sample proportion.</b></p>
+<p>Dividing the number of successes by the total number of trials gives the observed proportion.</p>
+
+<p><b>Step 4: Conduct the test.</b></p>
+<p><code>stats.binomtest()</code> compares the observed number of successes with what would be expected under a population success probability of 0.80.</p>
+
+<p><b>Step 5: Calculate an interval.</b></p>
+<p><code>proportion_ci()</code> returns an interval for the population proportion. The <code>method="exact"</code> argument requests an exact binomial interval.</p>
+
+<p>Read the p-value and confidence interval together. The p-value evaluates the benchmark claim, while the interval communicates uncertainty around the population proportion.</p>`
+    },
+    {
+      type: 'explain',
+      title: 'Understanding the assumptions and limitations of one-sample tests',
+      body: `<p>Statistical software can calculate a test statistic and p-value in a fraction of a second. That does not mean the result is automatically valid.</p>
+
+<p>The analyst must assess whether the data and study design support the test being used.</p>
+
+<p><b>1. Independence of observations</b></p>
+
+<p>Many conventional one-sample procedures assume that observations are independent. One delivery's transit time should not provide unaccounted-for information about another delivery's transit time.</p>
+
+<p>This assumption can be questionable when deliveries share a warehouse, vehicle, driver, route, supplier or disruption. For example, a warehouse outage may delay many deliveries simultaneously.</p>
+
+<p>If observations are clustered, treating every delivery as fully independent can make the standard error too small and the evidence appear stronger than it should. Depending on the research question, a clustered analysis, multilevel model or cluster-aware resampling procedure may be more appropriate.</p>
+
+<p><b>2. Sampling and representativeness</b></p>
+
+<p>A statistical test cannot automatically correct a biased sample. If the dataset contains only completed deliveries, it may exclude deliveries that are still in transit, cancelled or otherwise missing.</p>
+
+<p>Those exclusions can matter. If unusually delayed deliveries are more likely to remain incomplete, the observed completed-delivery times may understate the delivery time that would be seen across all dispatched orders.</p>
+
+<p>The population to which a result applies must therefore be defined carefully. A result based on completed deliveries should not automatically be described as a result for every delivery ever dispatched.</p>
+
+<p><b>3. Distributional assumptions for the t-test</b></p>
+
+<p>The one-sample t-test is most sensitive to distributional problems when the sample is small. Strong skewness, extreme outliers and heavy tails can undermine the reliability of the test.</p>
+
+<p>For large samples, the sampling distribution of the mean may be approximately normal under suitable conditions, but this does not solve every problem. Severe dependence, selection bias and data errors remain serious concerns.</p>
+
+<p><b>4. Constant success probability for the binomial test</b></p>
+
+<p>The simple binomial model assumes that every trial has the same probability of success under the model. If one region has much better delivery performance than another, combining all regions into one proportion may hide important differences.</p>
+
+<p>Likewise, if performance changes over time, the assumption of a constant success probability may be unrealistic.</p>
+
+<p><b>5. Measurement and data quality</b></p>
+
+<p>Incorrect dates, inconsistent definitions of delivery completion, duplicated records and unusual data-entry errors can all affect the result. Statistical testing does not make poor-quality data reliable.</p>
+
+<p><b>6. Multiple testing</b></p>
+
+<p>If an analyst conducts many hypothesis tests, the probability of obtaining at least one false positive can increase. For example, testing dozens of routes, warehouses and customer segments separately at α = 0.05 creates a multiple-comparisons problem.</p>
+
+<p>When many tests are planned, analysts may need procedures such as the Bonferroni correction or false discovery rate control. The appropriate approach depends on the analysis objective and the consequences of false discoveries.</p>
+
+<p><b>The professional standard:</b> a test result is only as credible as the assumptions, measurement process, sampling design and interpretation that support it.</p>`
+    },
+    {
+      type: 'check',
+      title: 'Check your understanding: evaluate the test assumptions',
+      question: 'TradeFlow combines deliveries from several warehouses. Deliveries from the same warehouse are affected by shared equipment failures and staffing shortages. Why might an ordinary one-sample test be problematic?',
+      options: [
+        'Because delivery time is always a categorical variable.',
+        'Because observations may be dependent, violating the independence assumption.',
+        'Because a large sample automatically makes all observations independent.',
+        'Because hypothesis tests cannot be used with operational data.'
+      ],
+      answer: 1,
+      why: [
+        'Delivery time is numerical. It can be used in a one-sample mean test when the relevant assumptions are appropriate.',
+        'Correct. Shared warehouse conditions can make delivery outcomes related. Ignoring this dependence can understate uncertainty.',
+        'A large sample does not automatically remove dependence between observations.',
+        'Hypothesis tests can be used with operational data, but the test design must reflect how the data were generated.'
+      ]
+    },
+    {
+      type: 'exercise',
+      title: 'Exercise 1: calculate a one-sample t-statistic manually',
+      body: `<p>Use a hypothetical sample to calculate the standard error and t-statistic for a test of whether the population mean differs from five days.</p>
+
+<p>The sample has a mean of 5.6 days, a standard deviation of 2.4 days and 64 observations.</p>
+
+<p>Calculate the values manually before using SciPy. This reinforces the relationship between the observed difference, sample variability and sample size.</p>`,
+      starter: `import numpy as np
+
+sample_mean = 5.6
+benchmark = 5
+sample_std = 2.4
+n = 64
+
+# Calculate the standard error.
+standard_error =
+
+# Calculate the t-statistic.
+t_statistic =
+
+print("Standard error:", standard_error)
+print("t-statistic:", t_statistic)`,
+      hints: [
+        'The standard error is sample_std divided by the square root of n.',
+        'The t-statistic is (sample_mean - benchmark) divided by the standard error.',
+        'Use np.sqrt(n) to calculate the square root.'
+      ],
+      solution: `import numpy as np
+
+sample_mean = 5.6
+benchmark = 5
+sample_std = 2.4
+n = 64
+
+standard_error = sample_std / np.sqrt(n)
+
+t_statistic = (sample_mean - benchmark) / standard_error
+
+print("Standard error:", standard_error)
+print("t-statistic:", t_statistic)`,
       ordered: true
     },
     {
       type: 'exercise',
-      id: 'st-5-2-ex4',
-      title: 'Your turn: calculate a one-proportion z-statistic',
-      body: `<p>Using the same five-day success definition, calculate the one-proportion z-statistic for H₀: p = 0.80.</p>
-<p>Store the statistic as <code>z_stat</code> and the two-sided normal-approximation p-value as <code>z_p_value</code>.</p>
-<p>Use the null standard error √(p₀(1 − p₀) / n). The hypothesised value p₀ belongs in this standard error because the calculation is made under H₀.</p>`,
-      starter: `# Calculate the observed proportion and null standard error.
-# Store the z-statistic and p-value.`,
+      title: 'Exercise 2: conduct a right-tailed one-sample t-test',
+      body: `<p>TradeFlow's operations team wants to know whether average delivery time is greater than five days.</p>
+
+<p>Use the <code>transit</code> data to conduct a right-tailed one-sample t-test.</p>
+
+<p>Print the t-statistic, p-value and degrees of freedom. Then use a significance level of 0.05 to print the correct decision.</p>`,
+      starter: `benchmark = 5
+alpha = 0.05
+
+# Conduct a right-tailed one-sample t-test.
+result =
+
+print("t-statistic:", result.statistic)
+print("p-value:", result.pvalue)
+print("Degrees of freedom:", result.df)
+
+# Make the statistical decision.
+if :
+    print()
+else:
+    print()`,
       hints: [
-        'Calculate p_hat from the observed successes. Then calculate the standard error using p_0=0.80.',
-        'sample = transit.to_numpy()\nsuccesses = int((sample <= 5).sum())\nn = len(sample)\np_hat = successes / n\np_0 = 0.80\nnull_se = np.sqrt(p_0 * (1 - p_0) / n)\nz_stat = (p_hat - p_0) / null_se\nz_p_value = 2 * stats.norm.sf(abs(z_stat))\nprint("z-statistic:", round(z_stat, 5))\nprint("p-value:", z_p_value)'
+        'Use stats.ttest_1samp(transit, popmean=benchmark, alternative="greater").',
+        'The p-value is stored in result.pvalue.',
+        'Reject the null hypothesis when the p-value is less than or equal to alpha.',
+        'Use “Fail to reject the null hypothesis” when the p-value exceeds alpha.'
       ],
-      solution: `sample = transit.to_numpy()
-
-successes = int((sample <= 5).sum())
-n = len(sample)
-p_hat = successes / n
-p_0 = 0.80
-
-null_se = np.sqrt(p_0 * (1 - p_0) / n)
-
-z_stat = (p_hat - p_0) / null_se
-z_p_value = 2 * stats.norm.sf(abs(z_stat))
-
-print("z-statistic:", round(z_stat, 5))
-print("p-value:", z_p_value)`,
-      ordered: true
-    },
-    {
-      type: 'exercise',
-      id: 'st-5-2-ex5',
-      title: 'Your turn: write a statistically responsible conclusion',
-      body: `<p>Run the one-sample t-test of H₀: μ = 5 days against Hₐ: μ ≠ 5 days. Then write a short report containing:</p>
-<ul>
-<li>The sample mean delivery time.</li>
-<li>The difference from the five-day benchmark.</li>
-<li>The p-value.</li>
-<li>The decision at α = 0.05.</li>
-<li>A conclusion that refers only to eligible recorded deliveries and does not claim causation.</li>
-</ul>
-<p>Store the final report as <code>report</code> and print it. Use an f-string to format the numerical results to three decimal places.</p>`,
-      starter: `# Run the test and construct a short, careful report.
-# Store the report as report.`,
-      hints: [
-        'Calculate the sample mean, difference and t-test result. Use an if statement to select the decision wording.',
-        'sample = transit.to_numpy()\nmean_value = sample.mean()\ndifference = mean_value - 5\nresult = stats.ttest_1samp(sample, popmean=5, alternative="two-sided")\nalpha = 0.05\nif result.pvalue <= alpha:\n    decision = "reject the five-day null hypothesis"\nelse:\n    decision = "fail to reject the five-day null hypothesis"\nreport = f"The eligible recorded deliveries have a sample mean transit time of {mean_value:.3f} days, which is {difference:.3f} days from the five-day benchmark. The two-sided test produced p = {result.pvalue:.5f}; at alpha = 0.05, we {decision}. This result describes the eligible recorded deliveries and does not establish a cause for the observed difference."\nprint(report)'
-      ],
-      solution: `sample = transit.to_numpy()
-
-mean_value = sample.mean()
-difference = mean_value - 5
+      solution: `benchmark = 5
+alpha = 0.05
 
 result = stats.ttest_1samp(
-    sample,
-    popmean=5,
+    transit,
+    popmean=benchmark,
+    alternative="greater"
+)
+
+print("t-statistic:", result.statistic)
+print("p-value:", result.pvalue)
+print("Degrees of freedom:", result.df)
+
+if result.pvalue <= alpha:
+    print("Reject the null hypothesis.")
+else:
+    print("Fail to reject the null hypothesis.")`,
+      ordered: true
+    },
+    {
+      type: 'exercise',
+      title: 'Exercise 3: compare one-tailed and two-tailed questions',
+      body: `<p>Use the same valid delivery-time sample to conduct two tests against the five-day benchmark:</p>
+
+<ul>
+<li>A two-tailed test asking whether the mean differs from five days.</li>
+<li>A right-tailed test asking whether the mean is greater than five days.</li>
+</ul>
+
+<p>Print both p-values. Explain in a code comment why the two questions are not interchangeable.</p>
+
+<p>The test direction must be chosen from the research question. The fact that both tests use the same data does not make them answer the same question.</p>`,
+      starter: `benchmark = 5
+
+two_sided_result =
+
+right_tailed_result =
+
+print("Two-tailed p-value:", two_sided_result.pvalue)
+print("Right-tailed p-value:", right_tailed_result.pvalue)
+
+# Explain the difference between the two research questions here.`,
+      hints: [
+        'Use alternative="two-sided" for the first test.',
+        'Use alternative="greater" for the second test.',
+        'The two-tailed test considers evidence in both directions; the right-tailed test considers evidence that the mean is greater than the benchmark.'
+      ],
+      solution: `benchmark = 5
+
+two_sided_result = stats.ttest_1samp(
+    transit,
+    popmean=benchmark,
     alternative="two-sided"
 )
 
-alpha = 0.05
-
-if result.pvalue <= alpha:
-    decision = "reject the five-day null hypothesis"
-else:
-    decision = "fail to reject the five-day null hypothesis"
-
-report = (
-    f"The eligible recorded deliveries have a sample mean "
-    f"transit time of {mean_value:.3f} days, which is "
-    f"{difference:.3f} days from the five-day benchmark. "
-    f"The two-sided test produced p = {result.pvalue:.5f}; "
-    f"at alpha = 0.05, we {decision}. This result describes "
-    f"the eligible recorded deliveries and does not establish "
-    f"a cause for the observed difference."
+right_tailed_result = stats.ttest_1samp(
+    transit,
+    popmean=benchmark,
+    alternative="greater"
 )
 
-print(report)`,
+print("Two-tailed p-value:", two_sided_result.pvalue)
+print("Right-tailed p-value:", right_tailed_result.pvalue)
+
+# The two-tailed test asks whether the mean differs in either direction.
+# The right-tailed test asks specifically whether the mean is greater.
+# The research question must determine the alternative before testing.`,
+      ordered: true
+    },
+    {
+      type: 'exercise',
+      title: 'Exercise 4: conduct an exact binomial test',
+      body: `<p>Define a successful delivery as one completed within five days or fewer. Test whether the population proportion differs from the illustrative benchmark of 80%.</p>
+
+<p>Use <code>stats.binomtest()</code> to calculate the exact p-value. Also calculate the observed sample proportion and a 95% exact confidence interval.</p>
+
+<p>Make sure you count both the number of successes and the total number of valid observations.</p>`,
+      starter: `on_time = transit <= 5
+
+successes =
+trials =
+
+sample_proportion =
+
+result = stats.binomtest(
+    k=,
+    n=,
+    p=0.80,
+    alternative="two-sided"
+)
+
+confidence_interval = result.proportion_ci(
+    confidence_level=0.95,
+    method="exact"
+)
+
+print("Successes:", successes)
+print("Trials:", trials)
+print("Sample proportion:", sample_proportion)
+print("p-value:", result.pvalue)
+print("95% confidence interval:")
+print(confidence_interval)`,
+      hints: [
+        'Use int(on_time.sum()) to count successes.',
+        'Use len(on_time) to count trials.',
+        'The sample proportion is successes divided by trials.',
+        'Pass successes and trials into the k and n arguments.'
+      ],
+      solution: `on_time = transit <= 5
+
+successes = int(on_time.sum())
+trials = len(on_time)
+
+sample_proportion = successes / trials
+
+result = stats.binomtest(
+    k=successes,
+    n=trials,
+    p=0.80,
+    alternative="two-sided"
+)
+
+confidence_interval = result.proportion_ci(
+    confidence_level=0.95,
+    method="exact"
+)
+
+print("Successes:", successes)
+print("Trials:", trials)
+print("Sample proportion:", sample_proportion)
+print("p-value:", result.pvalue)
+print("95% confidence interval:")
+print(confidence_interval)`,
+      ordered: true
+    },
+    {
+      type: 'exercise',
+      title: 'Exercise 5: interpret a proportion test without overstating the result',
+      body: `<p>Suppose an exact binomial test produces a p-value of 0.018 against a benchmark population proportion of 0.80. The significance level was selected as 0.05.</p>
+
+<p>Write a short decision-making program that prints the appropriate statistical conclusion.</p>
+
+<p>Your conclusion must state that the result provides evidence that the population proportion differs from 80%. It must not claim that the population proportion is definitely different or that the test has identified the cause.</p>`,
+      starter: `p_value = 0.018
+alpha = 0.05
+
+if :
+    print()
+else:
+    print()`,
+      hints: [
+        'Compare p_value with alpha.',
+        'The alternative hypothesis is two-sided, so the conclusion concerns a difference in either direction.',
+        'A statistical test does not identify the cause of a difference.'
+      ],
+      solution: `p_value = 0.018
+alpha = 0.05
+
+if p_value <= alpha:
+    print(
+        "Reject the null hypothesis. "
+        "The sample provides evidence that the population proportion "
+        "differs from 80%."
+    )
+else:
+    print(
+        "Fail to reject the null hypothesis. "
+        "The sample does not provide sufficient evidence that the "
+        "population proportion differs from 80%."
+    )`,
       ordered: true
     },
     {
       type: 'explain',
-      title: 'The limits of inference: what the data actually represent',
-      body: `<p>Before reporting a test result, an analyst must define the population to which the conclusion is intended to apply.</p>
-<p>The TradeFlow delivery file contains 9,500 delivery records, but not every record has a valid delivery date. Our <code>transit</code> variable excludes missing dates and negative transit durations. The resulting analysis therefore concerns eligible records with usable dispatch and delivery dates.</p>
-<p>This matters because missingness may not be random. Deliveries still in transit, failed deliveries and records with incomplete timestamps may differ systematically from completed deliveries. If those records are excluded, the mean and proportion calculated from the remaining records may not represent all delivery attempts.</p>
-<p>There are also possible dependence issues. Several deliveries may be handled by the same warehouse, occur during the same disruption, or be affected by the same operational policy. Treating every row as independent may understate uncertainty if observations are clustered.</p>
-<p>Finally, the dataset is a historical extract. Even if the sample accurately represents the recorded period, the delivery process may change over time. A result from one period does not guarantee the same performance in a later period.</p>
-<p>A responsible report should therefore identify:</p>
+      title: 'Module 5.2 summary: testing means and proportions',
+      body: `<p>You can now apply hypothesis testing to two important types of business outcome.</p>
+
+<p><b>One-sample t-test</b></p>
+
 <ul>
-<li>The population or operational group being studied.</li>
-<li>The eligibility rule used to select observations.</li>
-<li>The sample size and period covered.</li>
-<li>The estimated effect and its uncertainty.</li>
-<li>The test method and its assumptions.</li>
-<li>Any important missing-data, selection or dependence limitations.</li>
+<li>Use it to test a claim about a population mean when the population standard deviation is unknown.</li>
+<li>Calculate the t-statistic using the difference between the sample mean and benchmark divided by the estimated standard error.</li>
+<li>Use the t-distribution with n − 1 degrees of freedom.</li>
+<li>Choose a two-tailed, right-tailed or left-tailed test according to the research question.</li>
+<li>Assess independence, sampling quality, outliers and distributional conditions.</li>
 </ul>
-<p>Statistical testing is only one part of good analysis. A technically correct p-value cannot rescue a poorly defined population or a biased data collection process.</p>`
-    },
-    {
-      type: 'explain',
-      title: 'What you should take away from Lesson 5.2',
-      body: `<p>You can now match a hypothesis test to the population parameter being investigated and run two common tests in Python.</p>
+
+<p><b>Exact binomial test</b></p>
+
 <ul>
-<li><b>One-sample t-test:</b> evaluates a claim about a population mean when the population standard deviation is unknown.</li>
-<li><b>Exact binomial test:</b> evaluates a claim about a population proportion using the binomial probability model.</li>
-<li><b>One-proportion z-test:</b> uses a normal approximation and the null standard error when its conditions are adequate.</li>
-<li><b>Assumptions:</b> independence, a defensible sampling process and suitable distributional conditions remain essential.</li>
-<li><b>Interpretation:</b> report the estimate, effect size, p-value and limitations rather than relying on a significant/not-significant label.</li>
+<li>Use it to test a claim about a population proportion when the outcome is binary and the binomial assumptions are reasonable.</li>
+<li>Count the number of successes and total trials.</li>
+<li>Compare the observed count with the binomial distribution under the null probability.</li>
+<li>Use the exact p-value and, where appropriate, an exact confidence interval.</li>
+<li>Assess independence and whether the probability of success can reasonably be treated as constant.</li>
 </ul>
-<p>In the next lesson, we will move from testing one population to comparing two groups. We will learn how to distinguish independent samples from paired observations and why that distinction changes the correct statistical method.</p>`
+
+<p><b>The wider lesson</b></p>
+
+<p>A hypothesis test is not just a Python function. It is a structured argument:</p>
+
+<ol>
+<li>Define the population and parameter of interest.</li>
+<li>State the null and alternative hypotheses.</li>
+<li>Choose the test that matches the data and research question.</li>
+<li>Check whether the assumptions are reasonable.</li>
+<li>Calculate and interpret the test statistic and p-value.</li>
+<li>Make a decision using a preselected significance level.</li>
+<li>Explain the estimated effect, uncertainty, limitations and practical importance.</li>
+</ol>
+
+<p>In the next part of Module 5, we will deepen this understanding by examining how statistical decisions are made in more complex settings, including comparisons between groups, the relationship between confidence intervals and hypothesis tests, and the consequences of conducting multiple tests.</p>`
     }
   ]
 }
