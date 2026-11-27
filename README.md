@@ -12,7 +12,7 @@
 
 ## The learning path
 
-Eight tracks that follow the book *The Complete Data Analyst*, from your first question to presenting to executives. Two are complete today, with **77 lessons, 375 exercises and 170 knowledge checks**.
+Eight tracks that follow the book *The Complete Data Analyst*, from your first question to presenting to executives. Two are complete and a third is in progress, with **93 lessons, 455 exercises and 218 knowledge checks** so far.
 
 | # | Track | Status |
 |---|-------|--------|
@@ -20,7 +20,7 @@ Eight tracks that follow the book *The Complete Data Analyst*, from your first q
 | 2 | Spreadsheets | Coming soon |
 | 3 | SQL for Data Analysis | **Live: 38 lessons, 180 exercises** |
 | 4 | Python for Data Analysis | **Live: 39 lessons, 195 exercises** |
-| 5 | Statistics and Probability | Coming soon |
+| 5 | Statistics and Probability | **In progress: 16 lessons, 80 exercises (Modules 1 to 4 of 8)** |
 | 6 | Visualisation and Storytelling | Coming soon |
 | 7 | Advanced Analytics | Coming soon |
 | 8 | The Professional Analyst | Coming soon |
@@ -43,6 +43,18 @@ The Python track takes you from your first line of code to an automated reportin
 | 6 | Exploratory data analysis | 4 |
 | 7 | Visualisation: lines, bars, histograms, scatter plots and a board pack | 4 |
 | 8 | Automating analyst workflows: functions, pipelines, configuration and scheduled reports | 4 |
+
+### Statistics and Probability
+
+The Statistics track teaches you to separate signal from noise, using real TradeFlow questions such as "is that drop in revenue real?" and "how long do deliveries really take?". Modules 1 to 4 are live. Hypothesis testing, correlation and regression, A/B testing and statistics in practice are coming next.
+
+| Module | Topic | Lessons |
+|--------|-------|--------:|
+| 1 | Thinking statistically: signal and noise, centre and spread, shape and outliers, samples and bias | 4 |
+| 2 | Probability: events, conditional probability, Bayes and expected value | 4 |
+| 3 | Distributions: Binomial, Poisson, the normal curve and skewed data | 4 |
+| 4 | Estimation: sampling, the Central Limit Theorem, confidence intervals and the bootstrap | 4 |
+| 5 to 8 | Hypothesis testing, correlation and regression, A/B testing, statistics in practice | Coming soon |
 
 ### How a lesson works
 
@@ -98,4 +110,5 @@ python -m http.server 8000
 - [x] Python track
 - [ ] Accounts, points and a leaderboard
 - [ ] A full testing pass over every lesson, and a teaching-depth pass on the SQL track
-- [ ] The remaining tracks: Analyst Foundations, Spreadsheets, Statistics and Probability, Visualisation and Storytelling, Advanced Analytics and The Professional Analyst
+- [ ] Statistics and Probability: Modules 5 to 8 (Modules 1 to 4 are live)
+- [ ] The remaining tracks: Analyst Foundations, Spreadsheets, Visualisation and Storytelling, Advanced Analytics and The Professional Analyst
