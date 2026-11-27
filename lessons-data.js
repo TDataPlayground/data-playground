@@ -1353,6 +1353,7 @@ MODULES.push({
   ]
 });
 
+
 MODULES.push({
   id: 'st5-b',
   file: 'lessons/st5b.js',
@@ -1363,15 +1364,16 @@ MODULES.push({
     {
       id: 'st-5-3',
       title: '5.3 Two-sample hypothesis tests: comparing groups',
-      ex: 2
+      ex: 5
     },
     {
       id: 'st-5-4',
       title: '5.4 Hypothesis tests for categorical data',
-      ex: 2
+      ex: 5
     }
   ]
 });
+
 
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
