@@ -1332,15 +1332,24 @@ MODULES.push({
   ]
 });
 
+
 MODULES.push({
   id: 'st5',
   file: 'lessons/st5a.js',
-  v: 2,
+  v: 3,
   track: 'statistics',
   title: 'Module 5: Hypothesis Testing',
   lessons: [
-    { id: 'st-5-1', title: '5.1 Hypothesis testing: questions, evidence and decisions', ex: 5 },
-    { id: 'st-5-2', title: '5.2 One-sample tests: testing means and proportions', ex: 5 }
+    {
+      id: 'st-5-1',
+      title: '5.1 Hypothesis testing: questions, evidence and decisions',
+      ex: 5
+    },
+    {
+      id: 'st-5-2',
+      title: '5.2 One-sample tests: testing means and proportions',
+      ex: 5
+    }
   ]
 });
 
