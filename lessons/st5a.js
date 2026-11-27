@@ -1,982 +1,1032 @@
 
-LESSONS.push(
-{
-  id: 'st-5-1',
+LESSONS.push({
+  id: 'st-5-3',
   track: 'statistics',
   lang: 'python',
-  packages: ['pandas', 'numpy', 'scipy'],
+  packages: ['numpy', 'pandas', 'scipy'],
   loopGuard: true,
-  files: ['deliveries'],
-  setup: `import pandas as pd
+  files: [],
+  setup: `
 import numpy as np
+import pandas as pd
 from scipy import stats
 
-deliveries = pd.read_csv("deliveries.csv")
-
-deliveries["dispatch_date"] = pd.to_datetime(
-    deliveries["dispatch_date"], errors="coerce"
-)
-deliveries["delivery_date"] = pd.to_datetime(
-    deliveries["delivery_date"], errors="coerce"
-)
-
-deliveries["transit_days"] = (
-    deliveries["delivery_date"] - deliveries["dispatch_date"]
-).dt.days
-
-transit = deliveries.loc[
-    deliveries["transit_days"].notna()
-    & (deliveries["transit_days"] >= 0),
-    "transit_days"
-].astype(float).reset_index(drop=True)
-
-rng = np.random.default_rng(5101)
+print("Lesson 5.3: Two-sample hypothesis tests")
+print("Libraries loaded successfully.")
 `,
-  preloaded: ['deliveries', 'transit', 'rng'],
-  title: '5.1 Hypothesis testing: questions, evidence and decisions',
-  tables: [],
-  intro: `In Module 4, you learned how to estimate population quantities and communicate uncertainty using confidence intervals. We now take the next step: using sample evidence to evaluate a specific claim about a population.
-
-<p>Imagine that TradeFlow's operations team introduces a new delivery process. Management wants to know whether the average delivery time is different from a hypothetical benchmark of five days. The analytics team has delivery records, but observing a sample average is not enough to settle the question. We need a structured way to assess whether the observed difference is sufficiently unusual under a clearly stated claim.</p>
-
-<p>That is the purpose of <b>hypothesis testing</b>. It is a formal statistical procedure for evaluating how compatible sample evidence is with a proposed population claim.</p>
-
-<p>In this lesson, you will learn how to formulate null and alternative hypotheses, understand test statistics and p-values, choose a significance level, distinguish statistical from practical significance, and make decisions without overstating what the data prove.</p>
-
-<p>The five-day benchmark used in this lesson is an <b>illustrative analytical benchmark</b>. It is not being presented as TradeFlow's actual delivery service-level agreement.</p>`,
+  title: '5.3 Two-sample hypothesis tests: comparing groups',
+  intro: `
+    <p>Many important business questions require us to compare two groups rather than evaluate a single population.</p>
+    <p>TradeFlow might want to know whether two distribution centres have different average delivery times, whether a new training programme improves employee productivity, or whether two marketing campaigns generate different average order values.</p>
+    <p>This lesson develops the statistical methods used to answer these questions. You will learn to distinguish independent from paired samples, conduct Welch's t-test and paired t-tests, calculate confidence intervals, measure effect sizes, and interpret statistical evidence in practical terms.</p>
+    <p>All datasets created in this lesson are illustrative training data, not actual TradeFlow operational records.</p>
+  `,
   steps: [
     {
       type: 'explain',
-      title: 'Why hypothesis testing exists',
-      body: `<p>Suppose a sample of completed TradeFlow deliveries has an average transit time of 5.4 days. Is the population average really greater than five days, or could the difference have occurred because this particular sample happened to contain slower deliveries?</p>
-
-<p>This is a question about <b>sampling variability</b>. If we repeatedly selected samples from the same population, we would not obtain exactly the same sample mean every time. Some samples would have means below the population mean; others would have means above it.</p>
-
-<p>Hypothesis testing provides a framework for asking whether an observed sample result would be unusual if a particular population claim were true.</p>
-
-<p>A hypothesis test does not directly reveal the truth about a population. It evaluates the strength of sample evidence against a specified statistical model and its assumptions.</p>
-
-<div class="callout analogy"><b>An analogy:</b> Imagine that a quality-control team receives a shipment containing thousands of products. It cannot inspect every product, so it inspects a sample. If the sample contains an unusually high number of defective products, the team has reason to question the claim that the shipment meets the required quality standard. The sample does not prove that every product is defective; it provides evidence that the shipment may not meet the standard.</div>
-
-<p>In business analytics, hypothesis testing can help investigate questions such as:</p>
-<ul>
-<li>Is the average delivery time different from a stated benchmark?</li>
-<li>Has the proportion of orders delivered on time changed?</li>
-<li>Does a new process appear to reduce average processing time?</li>
-<li>Is the observed difference between two groups larger than we would reasonably expect from sampling variation alone?</li>
-</ul>
-
-<p>Notice that these questions refer to population characteristics, not merely the values observed in one dataset.</p>`
+      title: '1. Understanding two-sample hypothesis testing',
+      body: `
+        <p>A one-sample hypothesis test evaluates a claim about one population parameter. A two-sample test evaluates whether two populations differ.</p>
+        <p>Suppose TradeFlow compares the average delivery transit times of Centre A and Centre B. The population means are represented by μ₁ and μ₂.</p>
+        <p>The difference of interest is:</p>
+        <p><strong>μ₁ − μ₂</strong></p>
+        <p>A common null hypothesis is:</p>
+        <p><strong>H₀: μ₁ − μ₂ = 0</strong></p>
+        <p>The two-sided alternative is:</p>
+        <p><strong>H₁: μ₁ − μ₂ ≠ 0</strong></p>
+        <p>The null hypothesis says the population means are equal. The alternative says they differ.</p>
+        <p>We do not usually observe the entire populations. Instead, we calculate sample means and use statistical inference to evaluate whether the observed difference provides convincing evidence of a population difference.</p>
+        <p>It is important to distinguish a sample difference from a population difference. A sample difference can occur by chance even when the population means are equal.</p>
+      `
     },
     {
       type: 'explain',
-      title: 'The null and alternative hypotheses',
-      body: `<p>Every conventional hypothesis test begins by specifying two competing statements about a population parameter.</p>
-
-<p>The <b>null hypothesis</b>, written as H₀, is the reference claim used to construct the statistical test. It commonly represents no difference, no effect, or a particular benchmark value.</p>
-
-<p>The <b>alternative hypothesis</b>, written as H₁ or Hₐ, describes the direction or type of departure from the null hypothesis that the analyst wants to investigate.</p>
-
-<p>Suppose μ represents the population mean transit time for the population of deliveries under study. If the illustrative benchmark is five days, a two-sided test is written as:</p>
-
-<p><b>H₀: μ = 5</b></p>
-<p><b>H₁: μ ≠ 5</b></p>
-
-<p>The null hypothesis says that the population mean is five days. The alternative says that it is different from five days, whether higher or lower.</p>
-
-<p>There are three common forms of alternative hypothesis:</p>
-
-<table class="mini">
-<tr><th>Test type</th><th>Null hypothesis</th><th>Alternative hypothesis</th></tr>
-<tr><td>Two-sided</td><td>μ = 5</td><td>μ ≠ 5</td></tr>
-<tr><td>Right-tailed</td><td>μ = 5</td><td>μ &gt; 5</td></tr>
-<tr><td>Left-tailed</td><td>μ = 5</td><td>μ &lt; 5</td></tr>
-</table>
-
-<p>A <b>two-sided test</b> looks for evidence of a difference in either direction. A <b>right-tailed test</b> looks for evidence that the population parameter is greater than the benchmark. A <b>left-tailed test</b> looks for evidence that it is lower.</p>
-
-<p>The direction must be selected from the research question before examining the test result. Choosing a one-sided test only after seeing which direction the sample moved can inflate the false-positive risk.</p>
-
-<p>Another important distinction is that hypotheses concern population parameters. The sample mean is not the null hypothesis; it is a statistic calculated from observed data.</p>
-
-<p>For example:</p>
-<ul>
-<li>μ is the unknown population mean transit time.</li>
-<li>x̄ is the mean transit time calculated from the sample.</li>
-<li>H₀: μ = 5 is a claim about the population.</li>
-<li>x̄ = 5.4 is an observed sample result, if that is what the data produce.</li>
-</ul>
-
-<p>We use the sample statistic to evaluate the population claim. We do not confuse the two.</p>`
+      title: '2. Independent samples and Welch’s t-test',
+      body: `
+        <p>Two samples are independent when the observations in one group are not naturally paired with observations in the other group.</p>
+        <p>For example, if Centre A handles one set of deliveries and Centre B handles a different set, the delivery records are independent samples, provided the sampling process does not create additional dependencies.</p>
+        <p>Welch's two-sample t-test is used to compare two independent population means. It is particularly useful because it does not assume that the population variances are equal.</p>
+        <p>The test statistic is:</p>
+        <p><strong>t = (x̄₁ − x̄₂) / SE</strong></p>
+        <p>where:</p>
+        <p><strong>SE = √(s₁²/n₁ + s₂²/n₂)</strong></p>
+        <p>Here, x̄ represents a sample mean, s² represents a sample variance, and n represents the sample size.</p>
+        <p>Welch's method also estimates degrees of freedom using the sample sizes and variances. These degrees of freedom need not be whole numbers.</p>
+        <p>In SciPy, we use <code>stats.ttest_ind(group_a, group_b, equal_var=False)</code>. The argument <code>equal_var=False</code> tells Python to perform Welch's test rather than the equal-variance version of the independent-samples t-test.</p>
+      `
     },
     {
-      type: 'explain',
-      title: 'The test statistic: measuring how unusual the sample result is',
-      body: `<p>A test statistic converts the sample evidence into a numerical quantity that can be compared with a probability distribution specified by the null hypothesis.</p>
-
-<p>For a one-sample test of a population mean when the population standard deviation is unknown, the common test statistic is the one-sample t-statistic:</p>
-
-<p><b>t = (x̄ − μ₀) / (s / √n)</b></p>
-
-<p>Each part has a specific meaning:</p>
-<ul>
-<li><b>x̄:</b> the sample mean.</li>
-<li><b>μ₀:</b> the mean specified by the null hypothesis.</li>
-<li><b>s:</b> the sample standard deviation.</li>
-<li><b>n:</b> the sample size.</li>
-<li><b>s / √n:</b> the estimated standard error of the sample mean.</li>
-</ul>
-
-<p>The numerator measures the difference between the observed sample mean and the benchmark. The denominator measures the typical sampling variability of the sample mean under the model.</p>
-
-<p>This means the t-statistic expresses the observed difference in standard-error units.</p>
-
-<p>Suppose a sample mean is 5.4 days, the null value is five days, and the standard error is 0.1 day. The t-statistic would be:</p>
-
-<p><b>t = (5.4 − 5) / 0.1 = 4</b></p>
-
-<p>The sample mean is four estimated standard errors above the null value. That is a relatively large departure under the null model, although the actual p-value must be obtained from the appropriate t-distribution and degrees of freedom.</p>
-
-<p>For a one-sample t-test, the degrees of freedom are n − 1. The t-distribution accounts for the additional uncertainty created by estimating the population standard deviation using the sample.</p>
-
-<p>As the sample size increases, the t-distribution approaches the standard normal distribution. However, the t-distribution is the appropriate reference distribution for the conventional one-sample t-test when its assumptions are satisfied.</p>`
-    },
-    {
-      type: 'explain',
-      title: 'The p-value: what it does and does not tell us',
-      body: `<p>The <b>p-value</b> is one of the most misunderstood ideas in statistics.</p>
-
-<p>In a hypothesis test, the p-value is the probability, calculated under the assumption that the null hypothesis is true, of obtaining a test statistic at least as extreme as the one observed, in the direction or directions specified by the alternative hypothesis.</p>
-
-<p>In simpler language, it asks:</p>
-
-<div class="callout analogy"><b>If the null hypothesis were true, how surprising would our observed result be, or a result even more extreme?</b></div>
-
-<p>A small p-value means that the observed result would be relatively unusual under the null model. It therefore provides evidence against the null hypothesis.</p>
-
-<p>A large p-value means that the sample result is not especially unusual under the null model. It does not establish that the null hypothesis is true.</p>
-
-<p>For a two-sided test, extremeness is assessed in both directions. For a right-tailed test, it is assessed in the upper tail. For a left-tailed test, it is assessed in the lower tail.</p>
-
-<p>Consider the following interpretations:</p>
-<ul>
-<li><b>p = 0.03:</b> assuming the null hypothesis and model assumptions are correct, results at least this extreme would occur with probability 0.03 under the specified test.</li>
-<li><b>p = 0.40:</b> the observed result is not particularly unusual under the null model.</li>
-</ul>
-
-<p>Neither statement means that there is a 3% or 40% probability that the null hypothesis is true.</p>
-
-<p>The p-value is not:</p>
-<ul>
-<li>The probability that the null hypothesis is true.</li>
-<li>The probability that the alternative hypothesis is true.</li>
-<li>The probability that the result happened purely by chance.</li>
-<li>A measure of the size or business importance of an effect.</li>
-<li>A guarantee that a finding will replicate in another sample.</li>
-</ul>
-
-<p>A p-value is conditional on the null hypothesis and the statistical model. If the sample was biased, observations were dependent, or measurements were inaccurate, a small p-value does not repair those problems.</p>`
-    },
-    {
-      type: 'explain',
-      title: 'The significance level and the decision rule',
-      body: `<p>Before conducting a test, analysts commonly select a <b>significance level</b>, represented by the Greek letter α (alpha).</p>
-
-<p>The significance level is the maximum long-run probability of rejecting a true null hypothesis that the test procedure is designed to tolerate, assuming its conditions hold.</p>
-
-<p>A frequently used significance level is α = 0.05. This is a convention, not a universal law. Some high-stakes applications require a smaller threshold, while exploratory work may use a different pre-specified approach.</p>
-
-<p>The conventional decision rule is:</p>
-
-<ul>
-<li>If p-value ≤ α, reject H₀.</li>
-<li>If p-value &gt; α, fail to reject H₀.</li>
-</ul>
-
-<p>Suppose α = 0.05:</p>
-
-<table class="mini">
-<tr><th>p-value</th><th>Decision</th></tr>
-<tr><td>0.01</td><td>Reject H₀</td></tr>
-<tr><td>0.04</td><td>Reject H₀</td></tr>
-<tr><td>0.05</td><td>Reject H₀ under the conventional ≤ rule</td></tr>
-<tr><td>0.08</td><td>Fail to reject H₀</td></tr>
-<tr><td>0.31</td><td>Fail to reject H₀</td></tr>
-</table>
-
-<p>Be careful with the phrase <b>fail to reject</b>. It does not mean that we have proved or accepted the null hypothesis. It means that the available evidence did not cross the chosen threshold for rejecting it.</p>
-
-<p>A test may fail to reject H₀ because the null hypothesis is close to the truth, because the sample is small, because variability is high, or because the effect is difficult to detect. The p-value alone cannot distinguish these explanations.</p>`
-    },
-    {
-      type: 'explain',
-      title: 'Type I error, Type II error and statistical power',
-      body: `<p>Every hypothesis-testing procedure involves the possibility of making an incorrect decision.</p>
-
-<table class="mini">
-<tr><th>Reality</th><th>Decision</th><th>Outcome</th></tr>
-<tr><td>H₀ is true</td><td>Reject H₀</td><td>Type I error</td></tr>
-<tr><td>H₀ is true</td><td>Fail to reject H₀</td><td>Correct decision</td></tr>
-<tr><td>H₀ is false</td><td>Reject H₀</td><td>Correct decision</td></tr>
-<tr><td>H₀ is false</td><td>Fail to reject H₀</td><td>Type II error</td></tr>
-</table>
-
-<p>A <b>Type I error</b> occurs when we reject a null hypothesis that is actually true. Its long-run probability is controlled by the significance level α, provided the test assumptions hold.</p>
-
-<p>A <b>Type II error</b> occurs when we fail to reject a null hypothesis that is actually false. Its probability is represented by β.</p>
-
-<p><b>Statistical power</b> is the probability that a test correctly rejects the null hypothesis when a particular alternative is true:</p>
-
-<p><b>Power = 1 − β</b></p>
-
-<p>Power is not one fixed number for every possible alternative. It depends on the actual effect size, sample size, variability, significance level and test design.</p>
-
-<p>Power generally increases when:</p>
-<ul>
-<li>The sample size increases.</li>
-<li>The true effect is larger.</li>
-<li>Measurement variability decreases.</li>
-<li>The measurement process becomes more reliable.</li>
-</ul>
-
-<p>There is often a trade-off between Type I and Type II errors. If we make the significance threshold more stringent while keeping everything else fixed, we generally reduce the probability of a Type I error but may increase the probability of a Type II error.</p>
-
-<p>In a delivery-performance investigation, a Type I error could lead management to believe that average delivery time has changed when it has not. A Type II error could cause management to overlook a genuine deterioration in delivery performance.</p>`
-    },
-    {
-      type: 'explain',
-      title: 'Statistical significance is not practical significance',
-      body: `<p>A result can be statistically significant without being important to the business.</p>
-
-<p>Imagine that a very large sample allows an analyst to detect a mean delivery-time difference of 0.02 days. The p-value might be small because the standard error is extremely small. But a difference of 0.02 days is less than half an hour. Management may decide that this difference has little operational value.</p>
-
-<p>Now imagine a smaller sample produces an estimated difference of 1.5 days, but the p-value is 0.08. The effect could be operationally important, even though the test does not cross a conventional 5% significance threshold.</p>
-
-<p>These are different questions:</p>
-<ul>
-<li><b>Statistical question:</b> Is the observed evidence sufficiently inconsistent with the null model?</li>
-<li><b>Practical question:</b> Is the estimated difference large enough to matter in the real-world decision?</li>
-</ul>
-
-<p>Analysts should report the estimated effect size and a confidence interval alongside the p-value. This helps readers understand the direction, magnitude and uncertainty of the result.</p>
-
-<p>For business decisions, the analyst should also consider costs, operational constraints, customer experience and the consequences of acting or not acting.</p>`
-    },
-    {
-      type: 'exercise',
-      id: 'st-5-1-ex1',
-      title: 'Translate a business question into hypotheses',
-      body: `<p>TradeFlow is investigating whether the population mean transit time differs from an illustrative five-day benchmark.</p>
-<p>Let μ represent the population mean transit time. Write the null and alternative hypotheses for a two-sided test.</p>`,
-      starter: `# Write the null and alternative hypotheses as comments.
-
-# H0:
-
-# H1:
-`,
-      hints: [
-        'The null hypothesis contains the benchmark equality.',
-        'A two-sided alternative uses the not-equal symbol (≠).'
-      ],
-      solution: `# H0: mu = 5
-# H1: mu != 5`,
-      ordered: true
-    },
-    {
-      type: 'exercise',
-      id: 'st-5-1-ex2',
-      title: 'Calculate a one-sample t-statistic manually',
-      body: `<p>Suppose an independent sample has a mean transit time of 5.4 days, a sample standard deviation of 1.2 days, and 36 observations. The null mean is five days.</p>
-<p>Calculate the standard error and t-statistic. Define every variable in this exercise rather than relying on variables from another exercise.</p>`,
-      starter: `import numpy as np
-
-sample_mean = 5.4
-null_mean = 5.0
-sample_std = 1.2
-sample_size = 36
-
-# Calculate the standard error.
-
-# Calculate the t-statistic.
-
-# Print both values.
-`,
-      hints: [
-        'The standard error is sample_std divided by the square root of sample_size.',
-        'Subtract the null mean from the sample mean, then divide by the standard error.'
-      ],
-      solution: `import numpy as np
-
-sample_mean = 5.4
-null_mean = 5.0
-sample_std = 1.2
-sample_size = 36
-
-standard_error = sample_std / np.sqrt(sample_size)
-t_statistic = (sample_mean - null_mean) / standard_error
-
-print("Standard error:", round(standard_error, 4))
-print("t-statistic:", round(t_statistic, 4))`,
-      ordered: true
-    },
-    {
-      type: 'exercise',
-      id: 'st-5-1-ex3',
-      title: 'Interpret a p-value correctly',
-      body: `<p>An analyst reports a two-sided p-value of 0.032.</p>
-<p>Assuming the null hypothesis and test assumptions are correct, calculate the percentage probability represented by this p-value. Then print a careful interpretation.</p>`,
-      starter: `p_value = 0.032
-
-# Convert the p-value to a percentage.
-
-# Print an interpretation that begins with:
-# "Assuming the null hypothesis is true..."
-`,
-      hints: [
-        'Multiply the p-value by 100 to convert it to a percentage.',
-        'Do not describe the result as the probability that the null hypothesis is true.'
-      ],
-      solution: `p_value = 0.032
-
-percentage = p_value * 100
-
-print(
-    f"Assuming the null hypothesis and test assumptions are correct, "
-    f"a result at least as extreme as the observed one would occur "
-    f"with probability {percentage:.1f}% under the specified test."
-)`,
-      ordered: true
-    },
-    {
-      type: 'exercise',
-      id: 'st-5-1-ex4',
-      title: 'Apply a significance threshold',
-      body: `<p>Use a significance level of 0.05 to make the conventional decision for a test with a p-value of 0.041.</p>
-<p>Store the decision in a variable and print it.</p>`,
-      starter: `alpha = 0.05
-p_value = 0.041
-
-# Use an if/else statement to make the decision.
-
-`,
-      hints: [
-        'Compare p_value with alpha.',
-        'If p_value is less than or equal to alpha, reject the null hypothesis.'
-      ],
-      solution: `alpha = 0.05
-p_value = 0.041
-
-if p_value <= alpha:
-    decision = "Reject the null hypothesis"
-else:
-    decision = "Fail to reject the null hypothesis"
-
-print(decision)`,
-      ordered: true
-    },
-    {
-      type: 'exercise',
-      id: 'st-5-1-ex5',
-      title: 'Calculate statistical power',
-      body: `<p>A proposed test has a Type II error probability of 0.20 for a particular effect size.</p>
-<p>Calculate its statistical power and print the result as a percentage.</p>`,
-      starter: `beta = 0.20
-
-# Calculate power.
-
-# Convert it to a percentage and print it.
-`,
-      hints: [
-        'Power is equal to one minus beta.',
-        'Multiply the resulting proportion by 100 to express it as a percentage.'
-      ],
-      solution: `beta = 0.20
-
-power = 1 - beta
-power_percentage = power * 100
-
-print(f"Statistical power: {power_percentage:.1f}%")`,
-      ordered: true
-    },
-    {
-      type: 'check',
-      id: 'st-5-1-c1',
-      title: 'What does the null hypothesis represent?',
-      body: `<p>In a conventional hypothesis test, what is the role of the null hypothesis?</p>`,
-      options: [
-        'It is always the claim that the business wants to prove.',
-        'It is the reference claim used to construct the statistical test.',
-        'It is the sample mean calculated from the dataset.',
-        'It is the probability that the alternative hypothesis is true.'
-      ],
-      answer: 1,
-      why: [
-        'The null hypothesis is not necessarily the business claim the analyst hopes to support.',
-        'Correct. The null hypothesis supplies the reference condition under which the test statistic and p-value are evaluated.',
-        'The sample mean is a statistic, not a hypothesis about the population.',
-        'A null hypothesis is not a probability statement about the alternative.'
-      ]
-    },
-    {
-      type: 'check',
-      id: 'st-5-1-c2',
-      title: 'What does a p-value of 0.03 mean?',
-      body: `<p>Assume the test is correctly specified and the null hypothesis is true. Which interpretation is correct?</p>`,
-      options: [
-        'There is a 3% probability that the null hypothesis is true.',
-        'There is a 97% probability that the alternative hypothesis is true.',
-        'The probability of obtaining a result at least as extreme as the observed result is 3% under the null model.',
-        'The sample result is 3% larger than the population value.'
-      ],
-      answer: 2,
-      why: [
-        'A p-value is not the probability that the null hypothesis is true.',
-        'A p-value does not calculate the probability that the alternative hypothesis is true.',
-        'Correct. This is the conditional probability represented by the p-value.',
-        'A p-value is not a percentage difference between sample and population values.'
-      ]
-    },
-    {
-      type: 'check',
-      id: 'st-5-1-c3',
-      title: 'What is a Type II error?',
-      body: `<p>Which situation describes a Type II error?</p>`,
-      options: [
-        'Rejecting a null hypothesis that is true.',
-        'Failing to reject a null hypothesis that is false.',
-        'Rejecting a null hypothesis that is false.',
-        'Failing to reject a null hypothesis that is true.'
-      ],
-      answer: 1,
-      why: [
-        'This is a Type I error.',
-        'Correct. A Type II error occurs when a real departure from the null hypothesis is not detected by the test.',
-        'This is a correct rejection.',
-        'This is a correct non-rejection.'
-      ]
-    },
-    {
-      type: 'explain',
-      title: 'The discipline of making a statistical decision',
-      body: `<p>A defensible hypothesis test follows a sequence rather than jumping directly to a p-value.</p>
-<ol>
-<li>Define the population and the quantity being investigated.</li>
-<li>Specify the null and alternative hypotheses.</li>
-<li>Choose the significance level and test direction before examining the result.</li>
-<li>Select a test whose assumptions match the data and research question.</li>
-<li>Calculate the test statistic and p-value.</li>
-<li>Make the reject or fail-to-reject decision.</li>
-<li>Report the effect size, uncertainty, assumptions and practical implications.</li>
-</ol>
-<p>The conclusion must remain within the scope of the data. A test based on completed deliveries does not automatically describe deliveries that are still in transit, failed, cancelled or missing from the dataset.</p>
-
-<p>In particular, the TradeFlow dataset contains completed delivery records and other delivery records with missing delivery dates. Analysing only completed records may introduce selection bias if the completed deliveries differ systematically from the full population of interest. The test cannot correct that design limitation.</p>
-
-<p>Hypothesis testing is a method for evaluating evidence. It is not a substitute for understanding how the observations were collected.</p>`
-    },
-    {
-      type: 'explain',
-      title: 'Lesson 5.1 complete: evidence, uncertainty and decisions',
-      body: `<p>You should now be able to explain the logic behind hypothesis testing rather than treating it as a button that produces a p-value.</p>
-<ul>
-<li>A null hypothesis defines the reference claim.</li>
-<li>An alternative hypothesis specifies the departure being investigated.</li>
-<li>A test statistic measures the observed departure relative to its expected sampling variability.</li>
-<li>A p-value measures how extreme the observed evidence is under the null model.</li>
-<li>The significance level establishes a decision threshold.</li>
-<li>Type I and Type II errors describe two different ways a decision can be wrong.</li>
-<li>Statistical significance and practical importance are not the same thing.</li>
-</ul>
-<p>In Lesson 5.2, you will implement hypothesis tests in Python, including a one-sample t-test for a population mean and an exact binomial test for a population proportion.</p>`
-    }
-  ]
-}
-);
-
-LESSONS.push(
-{
-  id: 'st-5-2',
-  track: 'statistics',
-  lang: 'python',
-  packages: ['pandas', 'numpy', 'scipy'],
-  loopGuard: true,
-  files: ['deliveries'],
-  setup: `import pandas as pd
+      type: 'try',
+      title: 'Demonstration: comparing two distribution centres',
+      body: `
+        <p>We will simulate delivery transit times for two independent groups. Examine the sample means before interpreting the test result.</p>
+      `,
+      code: `
 import numpy as np
 from scipy import stats
 
-deliveries = pd.read_csv("deliveries.csv")
+rng = np.random.default_rng(5301)
 
-deliveries["dispatch_date"] = pd.to_datetime(
-    deliveries["dispatch_date"], errors="coerce"
+centre_a = rng.normal(4.8, 1.2, 45)
+centre_b = rng.normal(5.4, 1.5, 50)
+
+mean_a = np.mean(centre_a)
+mean_b = np.mean(centre_b)
+
+result = stats.ttest_ind(
+    centre_a,
+    centre_b,
+    equal_var=False,
+    alternative="two-sided"
 )
-deliveries["delivery_date"] = pd.to_datetime(
-    deliveries["delivery_date"], errors="coerce"
+
+print("Centre A mean:", round(mean_a, 3))
+print("Centre B mean:", round(mean_b, 3))
+print("Difference A - B:", round(mean_a - mean_b, 3))
+print("t-statistic:", round(result.statistic, 3))
+print("p-value:", round(result.pvalue, 4))
+      `
+    },
+    {
+      type: 'explain',
+      title: '3. Paired samples and repeated measurements',
+      body: `
+        <p>Sometimes two groups are not independent. Each observation in one group is connected to an observation in the other group.</p>
+        <p>Suppose TradeFlow measures the processing time of the same employees before and after a training programme. Each employee contributes two measurements.</p>
+        <p>These are paired observations. We calculate a difference for each employee:</p>
+        <p><strong>dᵢ = Afterᵢ − Beforeᵢ</strong></p>
+        <p>We then test whether the population mean of these differences is zero.</p>
+        <p>The paired t-test statistic is:</p>
+        <p><strong>t = d̄ / (s<sub>d</sub> / √n)</strong></p>
+        <p>Here, d̄ is the mean of the paired differences, s<sub>d</sub> is their sample standard deviation, and n is the number of pairs.</p>
+        <p>In SciPy, <code>stats.ttest_rel(after, before)</code> performs a paired t-test.</p>
+        <p>Do not choose a paired test simply because two samples have equal sizes. There must be a genuine relationship between the observations, such as repeated measurements on the same individuals or deliberately matched units.</p>
+      `
+    },
+    {
+      type: 'try',
+      title: 'Demonstration: before-and-after measurements',
+      body: `
+        <p>We will measure the same employees before and after training. A negative difference means processing time decreased.</p>
+      `,
+      code: `
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(5302)
+
+before = rng.normal(52, 7, 30)
+improvement = rng.normal(5, 3, 30)
+after = before - improvement
+
+differences = after - before
+
+result = stats.ttest_rel(
+    after,
+    before,
+    alternative="less"
 )
 
-deliveries["transit_days"] = (
-    deliveries["delivery_date"] - deliveries["dispatch_date"]
-).dt.days
+print("Mean before:", round(np.mean(before), 2))
+print("Mean after:", round(np.mean(after), 2))
+print("Mean difference:", round(np.mean(differences), 2))
+print("t-statistic:", round(result.statistic, 3))
+print("p-value:", round(result.pvalue, 4))
+      `
+    },
+    {
+      type: 'explain',
+      title: '4. Confidence intervals for differences between means',
+      body: `
+        <p>A hypothesis test provides evidence about a null hypothesis. A confidence interval provides an estimated range for the population difference.</p>
+        <p>For independent samples, the estimated difference is:</p>
+        <p><strong>x̄₁ − x̄₂</strong></p>
+        <p>A confidence interval is constructed by adding and subtracting a margin of error:</p>
+        <p><strong>Estimated difference ± critical value × standard error</strong></p>
+        <p>For Welch's method, the standard error is:</p>
+        <p><strong>SE = √(s₁²/n₁ + s₂²/n₂)</strong></p>
+        <p>The degrees of freedom are estimated using the Welch-Satterthwaite equation. We can obtain the critical t-value using <code>stats.t.ppf(0.975, df)</code> for a two-sided 95% confidence interval.</p>
+        <p>If the interval contains zero, the data are compatible with no population mean difference at the corresponding two-sided 5% significance level, under the test assumptions.</p>
+        <p>If the interval excludes zero, it indicates evidence of a difference at that level.</p>
+        <p>A confidence interval is more informative than a p-value alone because it communicates the direction, magnitude, and uncertainty of the estimated difference.</p>
+      `
+    },
+    {
+      type: 'explain',
+      title: '5. Effect sizes and practical significance',
+      body: `
+        <p>A statistically significant difference is not necessarily an important business difference.</p>
+        <p>Imagine that a very large sample reveals that Centre A is faster than Centre B by only 0.05 days. The difference might be statistically significant, but its operational importance could be negligible.</p>
+        <p>Cohen's d expresses a difference between independent group means in standard deviation units:</p>
+        <p><strong>d = (x̄₁ − x̄₂) / s<sub>pooled</sub></strong></p>
+        <p>The pooled standard deviation is:</p>
+        <p><strong>s<sub>pooled</sub> = √[((n₁ − 1)s₁² + (n₂ − 1)s₂²) / (n₁ + n₂ − 2)]</strong></p>
+        <p>The sign tells us the direction of the difference. The absolute value indicates its standardised magnitude.</p>
+        <p>Common rough reference points are 0.2 for a small effect, 0.5 for a medium effect, and 0.8 for a large effect. These are conventions, not universal rules. Business decisions should also consider the actual units, costs, risks, and operational context.</p>
+      `
+    },
+    {
+      type: 'exercise',
+      title: 'Exercise 1: Conduct an independent-samples test',
+      body: `
+        <p>TradeFlow compares transit times from two independent distribution centres.</p>
+        <p>Use Welch's t-test to determine whether the population means differ.</p>
+        <p>Your tasks:</p>
+        <ol>
+          <li>Calculate both sample means.</li>
+          <li>Calculate the difference between the means, using A minus B.</li>
+          <li>Conduct Welch's two-sample t-test.</li>
+          <li>Interpret the p-value at the 5% significance level.</li>
+        </ol>
+      `,
+      starter: `
+import numpy as np
+from scipy import stats
 
-transit = deliveries.loc[
-    deliveries["transit_days"].notna()
-    & (deliveries["transit_days"] >= 0),
-    "transit_days"
-].astype(float).reset_index(drop=True)
+centre_a = np.array([4.2, 5.1, 4.8, 5.0, 4.5, 4.7, 5.3, 4.4, 4.9, 5.2])
+centre_b = np.array([5.4, 5.8, 5.1, 6.2, 5.6, 5.9, 5.3, 6.0, 5.7, 5.5])
 
-rng = np.random.default_rng(5202)
+# Calculate the two sample means.
+
+
+# Calculate the difference between the means.
+
+
+# Conduct Welch's t-test.
+
+
+# Interpret the p-value.
 `,
-  preloaded: ['deliveries', 'transit', 'rng'],
-  title: '5.2 One-sample tests: testing means and proportions',
-  tables: [],
-  intro: `In Lesson 5.1, you learned the logic of hypothesis testing: formulate a claim, measure how far the sample departs from it, calculate a p-value and make a carefully qualified decision.
+      hints: [
+        'Use np.mean() for each group.',
+        'Use stats.ttest_ind() with equal_var=False.',
+        'A p-value below 0.05 is evidence against the null hypothesis at the 5% level.'
+      ],
+      solution: `
+import numpy as np
+from scipy import stats
 
-<p>Now we will put that logic into practice using Python.</p>
+centre_a = np.array([4.2, 5.1, 4.8, 5.0, 4.5, 4.7, 5.3, 4.4, 4.9, 5.2])
+centre_b = np.array([5.4, 5.8, 5.1, 6.2, 5.6, 5.9, 5.3, 6.0, 5.7, 5.5])
 
-<p>Many business questions involve either an average or a proportion. For example, TradeFlow may want to investigate whether the average delivery duration differs from a benchmark, or whether the proportion of completed deliveries meeting an illustrative delivery target differs from a stated percentage.</p>
+mean_a = np.mean(centre_a)
+mean_b = np.mean(centre_b)
+difference = mean_a - mean_b
 
-<p>These questions require different statistical tests. A mean describes the average value of a numerical variable. A proportion describes the share of observations belonging to a specified category or meeting a condition.</p>
+result = stats.ttest_ind(
+    centre_a,
+    centre_b,
+    equal_var=False,
+    alternative="two-sided"
+)
 
-<p>In this lesson, you will use the <b>one-sample t-test</b> to test a population mean and the <b>exact binomial test</b> to test a population proportion. You will learn how to define the sample correctly, interpret the output, check assumptions and communicate the results responsibly.</p>
+print("Centre A mean:", round(mean_a, 3))
+print("Centre B mean:", round(mean_b, 3))
+print("Difference A - B:", round(difference, 3))
+print("t-statistic:", round(result.statistic, 3))
+print("p-value:", round(result.pvalue, 4))
 
-<p>The five-day delivery target and 80% benchmark used in examples are illustrative analytical values, not verified TradeFlow service commitments.</p>`,
+if result.pvalue < 0.05:
+    print("Reject H0: evidence of a difference in population means.")
+else:
+    print("Fail to reject H0: insufficient evidence of a difference.")
+      `,
+      ordered: true
+    },
+    {
+      type: 'exercise',
+      title: 'Exercise 2: Calculate Cohen’s d',
+      body: `
+        <p>Two customer groups receive different fulfilment processes. Their processing times are recorded below.</p>
+        <p>Calculate each sample mean, each sample standard deviation, the pooled standard deviation, and Cohen's d.</p>
+        <p>Explain what the sign and magnitude of the effect size indicate. Remember that Cohen's d describes a standardised difference, not a direct business saving.</p>
+      `,
+      starter: `
+import numpy as np
+
+group_a = np.array([42, 45, 47, 44, 43, 46, 48, 45])
+group_b = np.array([49, 51, 50, 47, 53, 52, 48, 54])
+
+# Calculate sample sizes and means.
+
+
+# Calculate sample standard deviations using ddof=1.
+
+
+# Calculate the pooled variance and pooled standard deviation.
+
+
+# Calculate Cohen's d.
+
+
+# Print and interpret your results.
+`,
+      hints: [
+        'Use np.std(group, ddof=1) for sample standard deviation.',
+        'Weight each sample variance by its degrees of freedom when calculating pooled variance.',
+        'Cohen\\'s d is the difference in means divided by the pooled standard deviation.'
+      ],
+      solution: `
+import numpy as np
+
+group_a = np.array([42, 45, 47, 44, 43, 46, 48, 45])
+group_b = np.array([49, 51, 50, 47, 53, 52, 48, 54])
+
+n_a = len(group_a)
+n_b = len(group_b)
+
+mean_a = np.mean(group_a)
+mean_b = np.mean(group_b)
+
+sd_a = np.std(group_a, ddof=1)
+sd_b = np.std(group_b, ddof=1)
+
+pooled_variance = (
+    (n_a - 1) * sd_a**2 +
+    (n_b - 1) * sd_b**2
+) / (n_a + n_b - 2)
+
+pooled_sd = np.sqrt(pooled_variance)
+cohens_d = (mean_a - mean_b) / pooled_sd
+
+print("Group A mean:", round(mean_a, 3))
+print("Group B mean:", round(mean_b, 3))
+print("Group A SD:", round(sd_a, 3))
+print("Group B SD:", round(sd_b, 3))
+print("Pooled SD:", round(pooled_sd, 3))
+print("Cohen's d:", round(cohens_d, 3))
+      `,
+      ordered: true
+    },
+    {
+      type: 'exercise',
+      title: 'Exercise 3: Conduct a paired t-test',
+      body: `
+        <p>TradeFlow measures the processing time of the same ten employees before and after a workflow improvement.</p>
+        <p>Because the same employees were measured twice, these are paired observations.</p>
+        <p>Your tasks:</p>
+        <ol>
+          <li>Calculate the paired differences as after minus before.</li>
+          <li>Calculate the mean difference.</li>
+          <li>Conduct a two-sided paired t-test.</li>
+          <li>Interpret the p-value and direction of the change.</li>
+        </ol>
+      `,
+      starter: `
+import numpy as np
+from scipy import stats
+
+before = np.array([48, 52, 55, 49, 61, 57, 53, 50, 59, 54])
+after = np.array([44, 49, 50, 47, 55, 53, 51, 46, 54, 51])
+
+# Calculate paired differences.
+
+
+# Calculate the average difference.
+
+
+# Run a paired t-test.
+
+
+# Interpret the result.
+`,
+      hints: [
+        'Subtract before from after to calculate each employee\\'s difference.',
+        'Use stats.ttest_rel(after, before).',
+        'A negative mean difference means the recorded time decreased.'
+      ],
+      solution: `
+import numpy as np
+from scipy import stats
+
+before = np.array([48, 52, 55, 49, 61, 57, 53, 50, 59, 54])
+after = np.array([44, 49, 50, 47, 55, 53, 51, 46, 54, 51])
+
+differences = after - before
+
+result = stats.ttest_rel(
+    after,
+    before,
+    alternative="two-sided"
+)
+
+print("Paired differences:", differences)
+print("Mean difference:", round(np.mean(differences), 3))
+print("t-statistic:", round(result.statistic, 3))
+print("p-value:", round(result.pvalue, 4))
+
+if result.pvalue < 0.05:
+    print("Reject H0: evidence of a change in average processing time.")
+else:
+    print("Fail to reject H0: insufficient evidence of a change.")
+      `,
+      ordered: true
+    },
+    {
+      type: 'exercise',
+      title: 'Exercise 4: Construct a 95% confidence interval',
+      body: `
+        <p>TradeFlow wants to estimate the difference in average transit time between two independent groups.</p>
+        <p>Calculate a 95% Welch confidence interval for Group A minus Group B.</p>
+        <p>Your tasks:</p>
+        <ol>
+          <li>Calculate the mean difference.</li>
+          <li>Calculate the Welch standard error.</li>
+          <li>Calculate the Welch-Satterthwaite degrees of freedom.</li>
+          <li>Calculate the 95% confidence interval.</li>
+          <li>Explain what it means if the interval contains zero.</li>
+        </ol>
+      `,
+      starter: `
+import numpy as np
+from scipy import stats
+
+group_a = np.array([6.1, 5.8, 6.4, 5.9, 6.2, 6.0, 5.7, 6.3, 6.1, 5.9])
+group_b = np.array([6.8, 6.5, 6.9, 6.2, 6.6, 6.7, 6.4, 6.8, 6.3, 6.5])
+
+# Calculate sample sizes, means and variances.
+
+
+# Calculate the mean difference and standard error.
+
+
+# Calculate Welch degrees of freedom.
+
+
+# Calculate the critical t-value.
+
+
+# Construct and interpret the 95% confidence interval.
+`,
+      hints: [
+        'Use np.var(group, ddof=1) for sample variance.',
+        'Welch SE = sqrt(var1/n1 + var2/n2).',
+        'Use stats.t.ppf(0.975, df) for a two-sided 95% interval.'
+      ],
+      solution: `
+import numpy as np
+from scipy import stats
+
+group_a = np.array([6.1, 5.8, 6.4, 5.9, 6.2, 6.0, 5.7, 6.3, 6.1, 5.9])
+group_b = np.array([6.8, 6.5, 6.9, 6.2, 6.6, 6.7, 6.4, 6.8, 6.3, 6.5])
+
+n1 = len(group_a)
+n2 = len(group_b)
+
+mean_difference = np.mean(group_a) - np.mean(group_b)
+var1 = np.var(group_a, ddof=1)
+var2 = np.var(group_b, ddof=1)
+
+se = np.sqrt(var1 / n1 + var2 / n2)
+
+df = (var1 / n1 + var2 / n2) ** 2 / (
+    (var1 / n1) ** 2 / (n1 - 1) +
+    (var2 / n2) ** 2 / (n2 - 1)
+)
+
+critical = stats.t.ppf(0.975, df)
+
+lower = mean_difference - critical * se
+upper = mean_difference + critical * se
+
+print("Mean difference A - B:", round(mean_difference, 3))
+print("Standard error:", round(se, 3))
+print("Welch degrees of freedom:", round(df, 3))
+print("95% confidence interval:", round(lower, 3), "to", round(upper, 3))
+
+if lower <= 0 <= upper:
+    print("The interval contains zero.")
+else:
+    print("The interval excludes zero.")
+      `,
+      ordered: true
+    },
+    {
+      type: 'exercise',
+      title: 'Exercise 5: Select and justify the correct test',
+      body: `
+        <p>Consider three TradeFlow research scenarios.</p>
+        <ol>
+          <li>Compare delivery times from two centres handling different deliveries.</li>
+          <li>Compare employee processing times before and after training, using the same employees.</li>
+          <li>Compare average order values from two customer groups, where each customer receives only one promotional offer.</li>
+        </ol>
+        <p>Identify whether each scenario involves independent or paired observations. Then run the appropriate test using the supplied illustrative data.</p>
+        <p>Finally, explain why choosing the test based on the data collection design is essential.</p>
+      `,
+      starter: `
+import numpy as np
+from scipy import stats
+
+centre_a = np.array([4.1, 4.5, 4.8, 4.4, 4.9, 4.6, 4.2, 4.7])
+centre_b = np.array([5.0, 5.3, 5.1, 5.6, 5.2, 5.4, 5.0, 5.5])
+
+before = np.array([55, 52, 58, 61, 54, 57, 60, 53])
+after = np.array([51, 50, 53, 57, 50, 54, 55, 51])
+
+offer_a = np.array([120, 135, 128, 140, 125, 132, 138, 130])
+offer_b = np.array([145, 150, 138, 155, 142, 148, 152, 146])
+
+# Run Welch's test for Scenario 1.
+
+
+# Run a paired t-test for Scenario 2.
+
+
+# Run Welch's test for Scenario 3.
+
+
+# Print and interpret the three p-values.
+`,
+      hints: [
+        'Scenarios 1 and 3 involve independent samples.',
+        'Scenario 2 involves paired measurements.',
+        'Use ttest_ind with equal_var=False for independent groups and ttest_rel for paired groups.'
+      ],
+      solution: `
+import numpy as np
+from scipy import stats
+
+centre_a = np.array([4.1, 4.5, 4.8, 4.4, 4.9, 4.6, 4.2, 4.7])
+centre_b = np.array([5.0, 5.3, 5.1, 5.6, 5.2, 5.4, 5.0, 5.5])
+
+before = np.array([55, 52, 58, 61, 54, 57, 60, 53])
+after = np.array([51, 50, 53, 57, 50, 54, 55, 51])
+
+offer_a = np.array([120, 135, 128, 140, 125, 132, 138, 130])
+offer_b = np.array([145, 150, 138, 155, 142, 148, 152, 146])
+
+scenario_1 = stats.ttest_ind(centre_a, centre_b, equal_var=False)
+scenario_2 = stats.ttest_rel(after, before)
+scenario_3 = stats.ttest_ind(offer_a, offer_b, equal_var=False)
+
+print("Scenario 1: independent delivery groups")
+print("p-value:", round(scenario_1.pvalue, 4))
+
+print("\\nScenario 2: paired employee measurements")
+print("p-value:", round(scenario_2.pvalue, 4))
+
+print("\\nScenario 3: independent customer groups")
+print("p-value:", round(scenario_3.pvalue, 4))
+      `,
+      ordered: true
+    }
+  ]
+});
+
+
+LESSONS.push({
+  id: 'st-5-4',
+  track: 'statistics',
+  lang: 'python',
+  packages: ['numpy', 'pandas', 'scipy'],
+  loopGuard: true,
+  files: [],
+  setup: `
+import numpy as np
+import pandas as pd
+from scipy import stats
+
+print("Lesson 5.4: Hypothesis tests for categorical data")
+print("Libraries loaded successfully.")
+`,
+  title: '5.4 Hypothesis tests for categorical data',
+  intro: `
+    <p>Not every business question concerns averages or numerical measurements. Many important questions involve categories, counts, and proportions.</p>
+    <p>TradeFlow may want to know whether delivery outcomes follow an expected distribution, whether delivery status is associated with distribution centre, or whether payment method is related to order cancellation.</p>
+    <p>This lesson introduces three important methods: the chi-square goodness-of-fit test, the chi-square test of independence, and Fisher's exact test. You will also learn how to evaluate expected frequencies and measure the strength of categorical associations.</p>
+  `,
   steps: [
     {
       type: 'explain',
-      title: 'Choose the test based on the parameter',
-      body: `<p>Before selecting a statistical test, identify the population parameter in the research question.</p>
-
-<table class="mini">
-<tr><th>Question</th><th>Parameter</th><th>Typical one-sample test</th></tr>
-<tr><td>Is the average delivery time different from five days?</td><td>Population mean μ</td><td>One-sample t-test</td></tr>
-<tr><td>Is the proportion of on-time deliveries different from 80%?</td><td>Population proportion p</td><td>One-sample binomial test</td></tr>
-</table>
-
-<p>A one-sample test compares information from one sample with a specified population benchmark. It does not compare two independent groups. Tests comparing two groups are covered later in the course.</p>
-
-<p>For a mean, the data must be numerical. For a proportion, each observation must be classifiable into one of two outcomes for the condition being tested: success or failure.</p>
-
-<p>For example, we can define a successful delivery as one completed within five days. Each eligible delivery then contributes either:</p>
-<ul>
-<li>Success: transit time is five days or less.</li>
-<li>Failure: transit time is greater than five days.</li>
-</ul>
-
-<p>The definition of success must be explicit. Changing the threshold changes the outcome being measured and therefore changes the population proportion under investigation.</p>`
+      title: '1. Understanding categorical data',
+      body: `
+        <p>Categorical variables represent groups or labels rather than numerical measurements.</p>
+        <p>Examples in a logistics business include:</p>
+        <ul>
+          <li>Delivery status: successful, delayed, or failed.</li>
+          <li>Payment method: card, transfer, or cash.</li>
+          <li>Distribution centre: Centre A, Centre B, or Centre C.</li>
+          <li>Customer segment: retail, wholesale, or corporate.</li>
+        </ul>
+        <p>Analysts commonly summarise categorical variables using frequency counts. A frequency is the number of observations belonging to a category.</p>
+        <p>For example, 720 successful deliveries, 210 delayed deliveries, and 70 failed deliveries form a frequency distribution.</p>
+        <p>Hypothesis tests for categorical data compare observed frequencies with frequencies expected under a statistical model or null hypothesis.</p>
+      `
     },
     {
       type: 'explain',
-      title: 'The one-sample t-test for a population mean',
-      body: `<p>The one-sample t-test evaluates whether a sample provides sufficient evidence that a population mean differs from a specified benchmark.</p>
+      title: '2. Chi-square goodness-of-fit test',
+      body: `
+        <p>A chi-square goodness-of-fit test evaluates whether an observed categorical distribution is consistent with a specified probability distribution.</p>
+        <p>Suppose TradeFlow expects 70% of deliveries to be successful, 20% to be delayed, and 10% to fail.</p>
+        <p>If 1,000 deliveries are observed, the expected frequencies are 700, 200, and 100.</p>
+        <p>The test statistic is:</p>
+        <p><strong>χ² = Σ (O − E)² / E</strong></p>
+        <p>O represents the observed frequency and E represents the expected frequency.</p>
+        <p>The null hypothesis states that the population proportions follow the specified distribution. The alternative states that the distribution differs in at least one category.</p>
+        <p>When there are k categories and no distribution parameters are estimated from the sample, the degrees of freedom are k − 1.</p>
+        <p>A significant result tells us that the overall distribution differs from the expected distribution. It does not automatically identify which category is responsible. To investigate that, compare the observed and expected counts.</p>
+      `
+    },
+    {
+      type: 'try',
+      title: 'Demonstration: testing delivery outcomes',
+      body: `
+        <p>Test whether the observed delivery outcomes match the expected proportions of 70%, 20%, and 10%.</p>
+      `,
+      code: `
+import numpy as np
+from scipy import stats
 
-<p>Its hypotheses for a two-sided test are:</p>
-<p><b>H₀: μ = μ₀</b></p>
-<p><b>H₁: μ ≠ μ₀</b></p>
+observed = np.array([720, 210, 70])
+expected_proportions = np.array([0.70, 0.20, 0.10])
 
-<p>The test statistic is:</p>
-<p><b>t = (x̄ − μ₀) / (s / √n)</b></p>
+expected = observed.sum() * expected_proportions
 
-<p>Under the null hypothesis, the statistic follows a t-distribution with n − 1 degrees of freedom when the usual model assumptions are satisfied.</p>
+result = stats.chisquare(
+    f_obs=observed,
+    f_exp=expected
+)
 
-<p>The test is particularly useful when the population standard deviation is unknown and is estimated from the sample. This is common in practical analytics.</p>
-
-<p>The conventional assumptions and considerations include:</p>
-<ul>
-<li><b>Quantitative outcome:</b> the variable should be numerical, such as transit time measured in days.</li>
-<li><b>Independence:</b> observations should be independent, or the sampling design must be accounted for.</li>
-<li><b>Sampling design:</b> the sample should support inference to the population being discussed.</li>
-<li><b>Distribution:</b> for small samples, the population distribution should be reasonably compatible with the t-test assumptions, without severe skewness or influential outliers.</li>
-<li><b>Larger samples:</b> the sampling distribution of the mean can often be approximated by the t model under broader population shapes, but extreme outliers, dependence and selection bias remain concerns.</li>
-</ul>
-
-<p>The t-test does not require the raw observations to be perfectly normally distributed in every practical application. However, a small sample with extreme skewness or influential outliers deserves careful investigation.</p>`
+print("Observed:", observed)
+print("Expected:", expected)
+print("Chi-square statistic:", round(result.statistic, 3))
+print("p-value:", round(result.pvalue, 4))
+      `
     },
     {
       type: 'explain',
-      title: 'Run a one-sample t-test with SciPy',
-      body: `<p>Python's SciPy library provides the function <code>scipy.stats.ttest_1samp()</code>.</p>
+      title: '3. Chi-square test of independence',
+      body: `
+        <p>A chi-square test of independence evaluates whether two categorical variables are associated.</p>
+        <p>For example, TradeFlow might investigate whether delivery status is associated with distribution centre.</p>
+        <p>The data can be arranged in a contingency table:</p>
+        <table>
+          <tr><th>Centre</th><th>Successful</th><th>Delayed</th><th>Failed</th></tr>
+          <tr><td>A</td><td>180</td><td>45</td><td>15</td></tr>
+          <tr><td>B</td><td>150</td><td>70</td><td>30</td></tr>
+          <tr><td>C</td><td>190</td><td>45</td><td>15</td></tr>
+        </table>
+        <p>The null hypothesis states that the variables are independent. The alternative states that they are associated.</p>
+        <p>The expected frequency in each cell is:</p>
+        <p><strong>Expected count = (Row total × Column total) / Grand total</strong></p>
+        <p>For a table with r rows and c columns, the degrees of freedom are:</p>
+        <p><strong>df = (r − 1)(c − 1)</strong></p>
+        <p>A significant result suggests an association. It does not establish causation, and it does not tell us how strong the association is.</p>
+      `
+    },
+    {
+      type: 'try',
+      title: 'Demonstration: distribution centre and delivery status',
+      body: `
+        <p>Use a contingency table to investigate whether delivery status and distribution centre are independent.</p>
+      `,
+      code: `
+import numpy as np
+from scipy import stats
 
-<p>Its basic form is:</p>
-<pre><code>stats.ttest_1samp(sample, popmean=benchmark, alternative="two-sided")</code></pre>
+table = np.array([
+    [180, 45, 15],
+    [150, 70, 30],
+    [190, 45, 15]
+])
 
-<p>The important arguments are:</p>
-<ul>
-<li><b>sample:</b> the numerical observations being tested.</li>
-<li><b>popmean:</b> the value specified by the null hypothesis.</li>
-<li><b>alternative:</b> the alternative hypothesis. Common values are "two-sided", "greater" and "less".</li>
-</ul>
+chi2, p_value, df, expected = stats.chi2_contingency(
+    table,
+    correction=False
+)
 
-<p>The returned result includes a t-statistic and a p-value. The statistic describes the sample's standardised departure from the null value. The p-value measures how extreme that statistic is under the null model and the chosen alternative.</p>
+print("Observed counts:")
+print(table)
 
-<p>For a two-sided test, the function evaluates departures in both directions. For a greater test, it evaluates evidence that the population mean is greater than the benchmark. For a less test, it evaluates evidence that the population mean is lower.</p>
+print("\\nExpected counts:")
+print(np.round(expected, 2))
 
-<p>Use the alternative that matches the research question established before inspecting the result. Do not switch the direction merely because one result produces a smaller p-value.</p>`
+print("\\nChi-square statistic:", round(chi2, 3))
+print("Degrees of freedom:", df)
+print("p-value:", round(p_value, 4))
+      `
     },
     {
       type: 'explain',
-      title: 'The one-sample binomial test for a population proportion',
-      body: `<p>A proportion is the fraction of population observations that meet a clearly defined condition.</p>
-
-<p>Suppose p represents the population proportion of eligible deliveries completed within five days. If the illustrative benchmark is 0.80, a two-sided test is:</p>
-
-<p><b>H₀: p = 0.80</b></p>
-<p><b>H₁: p ≠ 0.80</b></p>
-
-<p>Each observation is classified as a success or failure. If n independent observations are sampled and each has the same success probability p, the number of successes X follows a binomial distribution:</p>
-
-<p><b>X ~ Binomial(n, p)</b></p>
-
-<p>The exact binomial test evaluates how unusual the observed number of successes would be under the null proportion.</p>
-
-<p>SciPy provides <code>stats.binomtest()</code>. Its basic form is:</p>
-
-<pre><code>stats.binomtest(
-    k=successes,
-    n=sample_size,
-    p=benchmark,
-    alternative="two-sided"
-)</code></pre>
-
-<p>Here:</p>
-<ul>
-<li><b>k:</b> the observed number of successes.</li>
-<li><b>n:</b> the number of eligible observations.</li>
-<li><b>p:</b> the proportion specified by the null hypothesis.</li>
-<li><b>alternative:</b> the direction of the test.</li>
-</ul>
-
-<p>The exact binomial test is useful because it does not rely on the large-sample normal approximation to the binomial distribution. This is particularly valuable when the sample is small or the benchmark proportion is close to zero or one.</p>
-
-<p>Its assumptions still matter. The observations should be independent and the success definition should be consistent. If observations are clustered by warehouse or route, a simple binomial model may understate uncertainty.</p>`
+      title: '4. Expected frequencies and assumptions',
+      body: `
+        <p>The chi-square test uses a theoretical probability distribution to approximate the sampling distribution of its test statistic. This approximation is more reliable when expected frequencies are not too small.</p>
+        <p>A commonly used guideline is that expected counts should generally be at least 5 in every cell. More detailed guidance permits some smaller counts under particular conditions, but many very small expected frequencies can make the approximation unreliable.</p>
+        <p>Other important assumptions include:</p>
+        <ul>
+          <li>Each observation contributes to one cell only.</li>
+          <li>Observations are independent at the relevant sampling unit.</li>
+          <li>Categories are mutually exclusive and clearly defined.</li>
+          <li>Expected counts are calculated under the null hypothesis.</li>
+        </ul>
+        <p>If expected counts are too small, a standard chi-square approximation may not be appropriate. For a 2 × 2 table, Fisher's exact test is often a suitable alternative.</p>
+      `
     },
     {
       type: 'explain',
-      title: 'Why the exact binomial test matters',
-      body: `<p>For sufficiently large samples, analysts sometimes approximate a sample proportion's distribution using a normal distribution. A common standard error under the null hypothesis is:</p>
-
-<p><b>SE = √(p₀(1 − p₀) / n)</b></p>
-
-<p>The corresponding normal test statistic is:</p>
-<p><b>z = (p̂ − p₀) / √(p₀(1 − p₀) / n)</b></p>
-
-<p>This approximation can be useful when the expected numbers of successes and failures are sufficiently large. But it can be inaccurate when the sample is small or the benchmark is near zero or one.</p>
-
-<p>The exact binomial test calculates probabilities using the binomial distribution itself rather than relying on the normal approximation.</p>
-
-<p>For a two-sided exact binomial test, the calculation accounts for outcomes at least as incompatible with the null proportion as the observed result, according to the test's two-sided probability definition.</p>
-
-<p>For most ordinary analyst workflows, using SciPy's tested implementation is safer than manually summing binomial probabilities. It also makes the alternative hypothesis explicit.</p>`
+      title: '5. Fisher’s exact test',
+      body: `
+        <p>Fisher's exact test evaluates the association between two categorical variables in a 2 × 2 contingency table.</p>
+        <p>It is especially useful when sample sizes are small and expected cell frequencies are low.</p>
+        <p>Consider a table comparing payment method and cancellation:</p>
+        <table>
+          <tr><th></th><th>Cancelled</th><th>Not cancelled</th></tr>
+          <tr><td>Payment A</td><td>2</td><td>8</td></tr>
+          <tr><td>Payment B</td><td>7</td><td>3</td></tr>
+        </table>
+        <p>Fisher's exact test calculates probabilities from possible tables under the null hypothesis, conditional on the observed row and column totals.</p>
+        <p>The test also returns an odds ratio. An odds ratio of 1 indicates equal odds. An odds ratio greater than 1 indicates higher odds for the first row relative to the second for the first column outcome. A value below 1 indicates lower odds.</p>
+        <p>Always check the arrangement of the rows and columns before interpreting the direction of an odds ratio.</p>
+      `
     },
     {
       type: 'explain',
-      title: 'Prepare the TradeFlow sample carefully',
-      body: `<p>Before running either test, we need to understand what the dataset actually contains.</p>
-
-<p>The <code>transit</code> variable in the lesson setup is calculated from records with valid dispatch and delivery dates and non-negative transit durations.</p>
-
-<p>This is a sample of deliveries with recorded completion dates. It does not automatically represent every order, every attempted delivery or every delivery that was still in transit.</p>
-
-<p>That distinction matters because the missing delivery dates in the source data are not necessarily random. Some records may represent deliveries still in transit or failed deliveries. Excluding them can change the population to which the analysis applies.</p>
-
-<p>For the mean test, we investigate the mean transit time among the eligible completed deliveries represented by the sample.</p>
-
-<p>For the proportion test, we define an on-time success as a completed delivery with transit time of five days or less. The resulting proportion is conditional on the eligible completed-delivery sample.</p>
-
-<p>Do not silently generalise either result to all orders. A more complete operational analysis would examine incomplete deliveries, failed deliveries, routes, warehouses, time periods and other potential sources of systematic differences.</p>`
+      title: '6. Measuring association with Cramér’s V',
+      body: `
+        <p>A chi-square p-value tells us whether there is evidence of an association. It does not measure the strength of that association.</p>
+        <p>Cramér's V is a common measure of association strength for a contingency table:</p>
+        <p><strong>V = √(χ² / (n × min(r − 1, c − 1)))</strong></p>
+        <p>Here, χ² is the chi-square statistic, n is the total number of observations, r is the number of rows, and c is the number of columns.</p>
+        <p>Cramér's V ranges from 0 to 1. A value near 0 indicates little association, while a value closer to 1 indicates stronger association.</p>
+        <p>Interpretation depends on the dimensions of the table and the subject area. Do not treat generic cut-offs as universal business rules.</p>
+        <p>Finally, an association does not establish causation. If one distribution centre has a higher proportion of delayed deliveries, route difficulty, shipment type, staffing, or other variables may explain the difference.</p>
+      `
     },
     {
       type: 'exercise',
-      id: 'st-5-2-ex1',
-      title: 'Inspect the delivery-time sample',
-      body: `<p>Use the preloaded <code>transit</code> sample to calculate its size, mean and sample standard deviation. These are descriptive statistics, not hypothesis-test conclusions.</p>`,
-      starter: `# Use the preloaded transit Series.
+      title: 'Exercise 1: Chi-square goodness-of-fit test',
+      body: `
+        <p>TradeFlow expects delivery outcomes to follow these proportions: successful 65%, delayed 25%, and failed 10%.</p>
+        <p>A sample of 500 deliveries produces observed counts of 340 successful, 115 delayed, and 45 failed deliveries.</p>
+        <p>Calculate the expected frequencies, conduct a chi-square goodness-of-fit test, report the degrees of freedom and p-value, and interpret the result at the 5% significance level.</p>
+      `,
+      starter: `
+import numpy as np
+from scipy import stats
 
-# Calculate the sample size.
+observed = np.array([340, 115, 45])
+expected_proportions = np.array([0.65, 0.25, 0.10])
 
-# Calculate the sample mean.
+# Calculate expected frequencies.
 
-# Calculate the sample standard deviation using ddof=1.
 
-# Print all three results.
+# Conduct the goodness-of-fit test.
+
+
+# Report the statistic, degrees of freedom and p-value.
+
+
+# Interpret the result.
 `,
       hints: [
-        'Use len(transit) for the number of observations.',
-        'Use transit.mean() and transit.std(ddof=1) for the mean and sample standard deviation.'
+        'Multiply the total observed count by each expected proportion.',
+        'Use stats.chisquare(f_obs=observed, f_exp=expected).',
+        'There are three categories, so the degrees of freedom are two.'
       ],
-      solution: `sample_size = len(transit)
-sample_mean = transit.mean()
-sample_std = transit.std(ddof=1)
+      solution: `
+import numpy as np
+from scipy import stats
 
-print("Sample size:", sample_size)
-print("Sample mean:", round(sample_mean, 3), "days")
-print("Sample standard deviation:", round(sample_std, 3), "days")`,
-      ordered: true
-    },
-    {
-      type: 'exercise',
-      id: 'st-5-2-ex2',
-      title: 'Conduct a two-sided one-sample t-test',
-      body: `<p>Test whether the population mean transit time differs from the illustrative five-day benchmark.</p>
-<p>Use the preloaded <code>transit</code> data and SciPy's <code>ttest_1samp()</code>. Print the t-statistic and p-value.</p>`,
-      starter: `benchmark = 5.0
+observed = np.array([340, 115, 45])
+expected_proportions = np.array([0.65, 0.25, 0.10])
 
-# Run the two-sided one-sample t-test.
+total = observed.sum()
+expected = total * expected_proportions
 
-# Print the t-statistic.
-
-# Print the p-value.
-`,
-      hints: [
-        'Call stats.ttest_1samp(transit, popmean=benchmark, alternative="two-sided").',
-        'The returned object has statistic and pvalue attributes.'
-      ],
-      solution: `benchmark = 5.0
-
-test_result = stats.ttest_1samp(
-    transit,
-    popmean=benchmark,
-    alternative="two-sided"
+result = stats.chisquare(
+    f_obs=observed,
+    f_exp=expected
 )
 
-print("t-statistic:", round(test_result.statistic, 4))
-print("p-value:", test_result.pvalue)`,
-      ordered: true
-    },
-    {
-      type: 'exercise',
-      id: 'st-5-2-ex3',
-      title: 'Make and communicate the t-test decision',
-      body: `<p>Repeat the two-sided test against the five-day benchmark. Use a significance level of 0.05.</p>
-<p>Print the decision and a short statement that identifies the population quantity being investigated.</p>`,
-      starter: `benchmark = 5.0
-alpha = 0.05
+print("Total:", total)
+print("Observed:", observed)
+print("Expected:", expected)
+print("Chi-square statistic:", round(result.statistic, 3))
+print("Degrees of freedom:", len(observed) - 1)
+print("p-value:", round(result.pvalue, 4))
 
-test_result = stats.ttest_1samp(
-    transit,
-    popmean=benchmark,
-    alternative="two-sided"
-)
-
-# Compare the p-value with alpha.
-
-# Print the decision and a qualified conclusion.
-`,
-      hints: [
-        'Use test_result.pvalue <= alpha for the rejection rule.',
-        'Describe the conclusion as evidence about the mean among eligible completed deliveries, not all orders.'
-      ],
-      solution: `benchmark = 5.0
-alpha = 0.05
-
-test_result = stats.ttest_1samp(
-    transit,
-    popmean=benchmark,
-    alternative="two-sided"
-)
-
-if test_result.pvalue <= alpha:
-    decision = "Reject the null hypothesis"
-    conclusion = (
-        "There is statistically significant evidence that the "
-        "population mean transit time for the eligible completed "
-        "deliveries differs from five days."
-    )
+if result.pvalue < 0.05:
+    print("Reject H0: evidence that the distribution differs from expectation.")
 else:
-    decision = "Fail to reject the null hypothesis"
-    conclusion = (
-        "The sample does not provide sufficient evidence that the "
-        "population mean transit time for the eligible completed "
-        "deliveries differs from five days."
-    )
-
-print("Decision:", decision)
-print("Conclusion:", conclusion)
-print("p-value:", test_result.pvalue)`,
+    print("Fail to reject H0: insufficient evidence of a difference.")
+      `,
       ordered: true
     },
     {
       type: 'exercise',
-      id: 'st-5-2-ex4',
-      title: 'Create a binary on-time outcome',
-      body: `<p>For this exercise, define an eligible completed delivery as on time when its transit duration is five days or less.</p>
-<p>Create a Boolean outcome, calculate the number of successes and the observed sample proportion, and print the results.</p>`,
-      starter: `# Define the illustrative target.
+      title: 'Exercise 2: Chi-square test of independence',
+      body: `
+        <p>TradeFlow records delivery status across three distribution centres. Management wants to investigate whether delivery status is associated with distribution centre.</p>
+        <p>Run a chi-square test of independence using the supplied contingency table.</p>
+        <p>Display the expected frequencies, test statistic, degrees of freedom, and p-value. Interpret the result at the 5% significance level.</p>
+      `,
+      starter: `
+import numpy as np
+from scipy import stats
 
-target_days = 5
+observed = np.array([
+    [120, 30, 10],
+    [100, 45, 15],
+    [130, 25, 5]
+])
 
-# Create a Boolean Series identifying on-time deliveries.
+# Conduct the chi-square test of independence.
 
-# Count the successes.
 
-# Calculate the observed proportion.
+# Display expected frequencies.
 
-# Print the results.
+
+# Report the test statistic, degrees of freedom and p-value.
+
+
+# Interpret the result.
 `,
       hints: [
-        'Use transit <= target_days to create the Boolean Series.',
-        'Use sum() to count True values and mean() to calculate the proportion of True values.'
+        'Use stats.chi2_contingency().',
+        'The function returns the statistic, p-value, degrees of freedom, and expected frequencies.',
+        'The null hypothesis states that distribution centre and delivery status are independent.'
       ],
-      solution: `target_days = 5
+      solution: `
+import numpy as np
+from scipy import stats
 
-on_time = transit <= target_days
+observed = np.array([
+    [120, 30, 10],
+    [100, 45, 15],
+    [130, 25, 5]
+])
 
-successes = int(on_time.sum())
-sample_size = len(on_time)
-sample_proportion = on_time.mean()
+chi2, p_value, df, expected = stats.chi2_contingency(
+    observed,
+    correction=False
+)
 
-print("On-time deliveries:", successes)
-print("Eligible completed deliveries:", sample_size)
-print("Observed on-time proportion:", round(sample_proportion, 4))
-print("Observed on-time percentage:", round(sample_proportion * 100, 2), "%")`,
+print("Observed table:")
+print(observed)
+
+print("\\nExpected frequencies:")
+print(np.round(expected, 2))
+
+print("\\nChi-square statistic:", round(chi2, 3))
+print("Degrees of freedom:", df)
+print("p-value:", round(p_value, 4))
+
+if p_value < 0.05:
+    print("Reject H0: evidence of an association.")
+else:
+    print("Fail to reject H0: insufficient evidence of an association.")
+      `,
       ordered: true
     },
     {
       type: 'exercise',
-      id: 'st-5-2-ex5',
-      title: 'Conduct an exact binomial test',
-      body: `<p>Test whether the population proportion of eligible completed deliveries meeting the illustrative five-day target differs from 80%.</p>
-<p>Use the success count and sample size calculated directly from <code>transit</code> within this exercise. Run a two-sided exact binomial test and print the p-value and decision at α = 0.05.</p>`,
-      starter: `target_days = 5
-benchmark_proportion = 0.80
-alpha = 0.05
+      title: 'Exercise 3: Evaluate expected frequencies',
+      body: `
+        <p>Before interpreting a chi-square test, an analyst should inspect the expected frequencies.</p>
+        <p>Use the supplied 2 × 2 table to conduct a chi-square test. Display the expected frequencies, identify the smallest expected count, and explain whether the common guideline of at least 5 per cell is satisfied.</p>
+        <p>If the expected counts are too small, identify a more suitable test for this table.</p>
+      `,
+      starter: `
+import numpy as np
+from scipy import stats
 
-# Define the on-time outcomes.
+observed = np.array([
+    [3, 7],
+    [8, 2]
+])
 
-# Calculate the number of successes and sample size.
+# Run the chi-square test.
 
-# Run stats.binomtest().
 
-# Print the observed proportion, p-value and decision.
+# Display the expected frequencies.
+
+
+# Find the smallest expected count.
+
+
+# Evaluate the expected-count guideline.
 `,
       hints: [
-        'Create on_time = transit <= target_days, then calculate successes with on_time.sum().',
-        'Use stats.binomtest(k=successes, n=sample_size, p=benchmark_proportion, alternative="two-sided").'
+        'Use stats.chi2_contingency(observed, correction=False).',
+        'Use np.min(expected) to find the smallest expected frequency.',
+        'Fisher\\'s exact test is often suitable for a small 2 × 2 table.'
       ],
-      solution: `target_days = 5
-benchmark_proportion = 0.80
-alpha = 0.05
+      solution: `
+import numpy as np
+from scipy import stats
 
-on_time = transit <= target_days
+observed = np.array([
+    [3, 7],
+    [8, 2]
+])
 
-successes = int(on_time.sum())
-sample_size = len(on_time)
-sample_proportion = successes / sample_size
+chi2, p_value, df, expected = stats.chi2_contingency(
+    observed,
+    correction=False
+)
 
-proportion_test = stats.binomtest(
-    k=successes,
-    n=sample_size,
-    p=benchmark_proportion,
+smallest = np.min(expected)
+
+print("Expected frequencies:")
+print(np.round(expected, 3))
+print("Smallest expected count:", round(smallest, 3))
+print("Chi-square statistic:", round(chi2, 3))
+print("p-value:", round(p_value, 4))
+
+if smallest < 5:
+    print("At least one expected count is below 5.")
+    print("The chi-square approximation may be unreliable.")
+    print("Consider Fisher's exact test for this 2 x 2 table.")
+else:
+    print("Every expected count is at least 5.")
+      `,
+      ordered: true
+    },
+    {
+      type: 'exercise',
+      title: 'Exercise 4: Fisher’s exact test and odds ratios',
+      body: `
+        <p>TradeFlow investigates whether payment method is associated with order cancellation.</p>
+        <p>The table contains two payment methods and two cancellation outcomes.</p>
+        <p>Run a two-sided Fisher's exact test. Report the odds ratio and p-value. Interpret the direction of the odds ratio carefully, using the row and column order provided.</p>
+        <p>Finally, determine whether there is sufficient evidence of an association at the 5% significance level.</p>
+      `,
+      starter: `
+import numpy as np
+from scipy import stats
+
+table = np.array([
+    [2, 8],
+    [7, 3]
+])
+
+# Run Fisher's exact test.
+
+
+# Report the odds ratio and p-value.
+
+
+# Interpret the odds ratio and statistical result.
+`,
+      hints: [
+        'Use stats.fisher_exact(table, alternative="two-sided").',
+        'The first row is Payment A and the second is Payment B.',
+        'The first column is the cancellation outcome.'
+      ],
+      solution: `
+import numpy as np
+from scipy import stats
+
+table = np.array([
+    [2, 8],
+    [7, 3]
+])
+
+odds_ratio, p_value = stats.fisher_exact(
+    table,
     alternative="two-sided"
 )
 
-if proportion_test.pvalue <= alpha:
-    decision = "Reject the null hypothesis"
-else:
-    decision = "Fail to reject the null hypothesis"
+print("Odds ratio:", round(odds_ratio, 3))
+print("p-value:", round(p_value, 4))
 
-print("Successes:", successes)
-print("Sample size:", sample_size)
-print("Observed proportion:", round(sample_proportion, 4))
-print("p-value:", proportion_test.pvalue)
-print("Decision:", decision)`,
+if odds_ratio > 1:
+    print("The odds of cancellation are higher for Payment A than Payment B.")
+elif odds_ratio < 1:
+    print("The odds of cancellation are lower for Payment A than Payment B.")
+else:
+    print("The estimated cancellation odds are equal.")
+
+if p_value < 0.05:
+    print("Reject H0: evidence of an association.")
+else:
+    print("Fail to reject H0: insufficient evidence of an association.")
+      `,
       ordered: true
     },
     {
-      type: 'check',
-      id: 'st-5-2-c1',
-      title: 'Which test investigates a population mean?',
-      body: `<p>An analyst wants to determine whether the average transit duration differs from five days. Which test is the appropriate one-sample procedure when the population standard deviation is unknown?</p>`,
-      options: [
-        'A one-sample t-test',
-        'An exact binomial test',
-        'A chi-square test of independence',
-        'A test of two independent means'
+      type: 'exercise',
+      title: 'Exercise 5: Calculate and interpret Cramér’s V',
+      body: `
+        <p>A chi-square test can identify evidence of an association, but its p-value does not measure the strength of the relationship.</p>
+        <p>Use the contingency table to:</p>
+        <ol>
+          <li>Conduct a chi-square test of independence.</li>
+          <li>Calculate the total sample size.</li>
+          <li>Determine the number of rows and columns.</li>
+          <li>Calculate Cramér's V using the chi-square statistic.</li>
+          <li>Interpret the p-value and Cramér's V separately.</li>
+        </ol>
+        <p>Explain why the presence of an association does not establish that one variable causes the other.</p>
+      `,
+      starter: `
+import numpy as np
+from scipy import stats
+
+table = np.array([
+    [150, 40, 10],
+    [110, 60, 30],
+    [140, 45, 15]
+])
+
+# Conduct the chi-square test.
+
+
+# Calculate the total sample size.
+
+
+# Obtain the table dimensions.
+
+
+# Calculate Cramér's V.
+
+
+# Print and interpret the results.
+`,
+      hints: [
+        'Use stats.chi2_contingency() to obtain the chi-square statistic and p-value.',
+        'The total sample size is table.sum().',
+        'Use min(rows - 1, columns - 1) in the denominator of Cramér\\'s V.'
       ],
-      answer: 0,
-      why: [
-        'Correct. A one-sample t-test evaluates a numerical sample mean against a specified population mean.',
-        'A binomial test evaluates a proportion or success probability, not a numerical mean.',
-        'A chi-square test of independence investigates relationships between categorical variables.',
-        'A two-independent-means test compares two separate groups rather than one sample with a benchmark.'
-      ]
-    },
-    {
-      type: 'check',
-      id: 'st-5-2-c2',
-      title: 'Why use an exact binomial test?',
-      body: `<p>Why might an analyst prefer an exact binomial test to a normal approximation when testing a population proportion?</p>`,
-      options: [
-        'It removes the need for independent observations.',
-        'It automatically corrects selection bias.',
-        'It calculates probabilities from the binomial distribution without relying on the large-sample normal approximation.',
-        'It proves that the benchmark proportion is correct.'
-      ],
-      answer: 2,
-      why: [
-        'The binomial model still relies on an appropriate independence assumption.',
-        'No statistical test automatically repairs selection bias.',
-        'Correct. The exact procedure uses the binomial distribution directly, which is particularly useful for small samples or proportions near the boundaries.',
-        'A test evaluates evidence against a benchmark; it does not prove the benchmark is correct.'
-      ]
-    },
-    {
-      type: 'check',
-      id: 'st-5-2-c3',
-      title: 'What does a non-significant result establish?',
-      body: `<p>A one-sample t-test produces a p-value of 0.12 at a significance level of 0.05. What is the correct conclusion?</p>`,
-      options: [
-        'The population mean is definitely equal to the benchmark.',
-        'The null hypothesis has been proven.',
-        'The sample does not provide sufficient evidence to reject the null hypothesis at the chosen significance level.',
-        'The probability that the null hypothesis is true is 12%.'
-      ],
-      answer: 2,
-      why: [
-        'A non-significant result does not prove exact equality.',
-        'Hypothesis tests do not prove the null hypothesis.',
-        'Correct. The p-value exceeds the pre-specified significance level, so we fail to reject the null hypothesis.',
-        'The p-value is not the probability that the null hypothesis is true.'
-      ]
-    },
-    {
-      type: 'explain',
-      title: 'Interpreting the results responsibly',
-      body: `<p>When you report a one-sample test, do not report only the p-value. A useful report should include:</p>
-<ul>
-<li>The population quantity and benchmark being tested.</li>
-<li>The sample size and the definition of the eligible sample.</li>
-<li>The observed sample mean or proportion.</li>
-<li>The test statistic and p-value.</li>
-<li>The significance level and decision.</li>
-<li>An effect estimate and, where appropriate, a confidence interval.</li>
-<li>The assumptions and limitations that affect interpretation.</li>
-</ul>
+      solution: `
+import numpy as np
+from scipy import stats
 
-<p>For a mean, the observed difference from the benchmark is useful alongside the p-value. For a proportion, report the observed proportion and its difference from the benchmark. A confidence interval can help communicate the plausible range of population values.</p>
+table = np.array([
+    [150, 40, 10],
+    [110, 60, 30],
+    [140, 45, 15]
+])
 
-<p>Remember that a statistically significant result is not necessarily operationally important. Likewise, a non-significant result does not prove that no meaningful difference exists.</p>
+chi2, p_value, df, expected = stats.chi2_contingency(
+    table,
+    correction=False
+)
 
-<p>In the TradeFlow example, the tests concern the completed deliveries represented in the sample. The results should not be described as evidence about every order or every delivery attempt without a stronger sampling design and a clear treatment of incomplete and failed deliveries.</p>`
-    },
-    {
-      type: 'explain',
-      title: 'Module 5 complete: from claims to statistical evidence',
-      body: `<p>You have now moved from describing data and estimating population quantities to formally evaluating statistical claims.</p>
+n = table.sum()
+rows, columns = table.shape
 
-<p>You can now:</p>
-<ul>
-<li>Formulate null and alternative hypotheses.</li>
-<li>Distinguish one-sided and two-sided tests.</li>
-<li>Explain test statistics, p-values and significance levels.</li>
-<li>Identify Type I and Type II errors and explain statistical power.</li>
-<li>Distinguish statistical significance from practical importance.</li>
-<li>Run a one-sample t-test for a population mean.</li>
-<li>Run an exact binomial test for a population proportion.</li>
-<li>Interpret results in the context of sampling assumptions and data limitations.</li>
-</ul>
+cramers_v = np.sqrt(
+    chi2 / (n * min(rows - 1, columns - 1))
+)
 
-<p>The next module builds on these ideas by examining relationships between variables. You will learn how correlation describes association and how simple linear regression models the relationship between a numerical outcome and a predictor.</p>`
+print("Chi-square statistic:", round(chi2, 3))
+print("Degrees of freedom:", df)
+print("p-value:", round(p_value, 4))
+print("Sample size:", n)
+print("Cramer's V:", round(cramers_v, 3))
+
+if p_value < 0.05:
+    print("There is evidence of an association.")
+else:
+    print("There is insufficient evidence of an association.")
+
+print("Cramer's V measures association strength.")
+print("Association alone does not establish causation.")
+      `,
+      ordered: true
     }
   ]
-}
-);
+});
