@@ -1332,6 +1332,17 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'st5',
+  file: 'lessons/st5a.js',
+  v: 1,
+  track: 'statistics',
+  title: 'Module 5: Hypothesis Testing',
+  lessons: [
+    { id: 'st-5-1', title: '5.1 The logic of hypothesis testing: null, p-value and the permutation test', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
