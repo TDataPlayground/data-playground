@@ -123,7 +123,11 @@ x = 9
         'Calculate (x - mu) / sigma.',
         'z = (x - mu) / sigma\nprint("{:.2f}".format(z))\n'
       ],
-      solution: `z = (x - mu) / sigma
+      solution: `mu = 6
+sigma = 2
+x = 9
+
+z = (x - mu) / sigma
 print("{:.2f}".format(z))
 `,
       ordered: true
@@ -170,7 +174,11 @@ deadline = 8
         'Calculate z = (deadline - mu) / sigma, then call normal_cdf(z).',
         'z = (deadline - mu) / sigma\np = normal_cdf(z)\nprint("{:.4f}".format(p))\n'
       ],
-      solution: `z = (deadline - mu) / sigma
+      solution: `mu = 6
+sigma = 2
+deadline = 8
+
+z = (deadline - mu) / sigma
 p = normal_cdf(z)
 print("{:.4f}".format(p))
 `,
@@ -210,7 +218,12 @@ upper = 8
         'Find z_lower and z_upper. Then subtract normal_cdf(z_lower) from normal_cdf(z_upper).',
         'z_lower = (lower - mu) / sigma\nz_upper = (upper - mu) / sigma\np_between = normal_cdf(z_upper) - normal_cdf(z_lower)\nprint("{:.4f}".format(p_between))\n'
       ],
-      solution: `z_lower = (lower - mu) / sigma
+      solution: `mu = 6
+sigma = 2
+lower = 4
+upper = 8
+
+z_lower = (lower - mu) / sigma
 z_upper = (upper - mu) / sigma
 p_between = normal_cdf(z_upper) - normal_cdf(z_lower)
 print("{:.4f}".format(p_between))
@@ -288,7 +301,12 @@ p = 0.5
         'Calculate mu = n*p and sigma = sqrt(n*p*(1-p)). Use z-scores for 44.5 and 55.5.',
         'mu = n * p\nsigma = math.sqrt(n * p * (1 - p))\nlo = (44.5 - mu) / sigma\nhi = (55.5 - mu) / sigma\nprint("{:.4f}".format(normal_cdf(hi) - normal_cdf(lo)))\n'
       ],
-      solution: `mu = n * p
+      solution: `import math
+
+n = 100
+p = 0.5
+
+mu = n * p
 sigma = math.sqrt(n * p * (1 - p))
 lo = (44.5 - mu) / sigma
 hi = (55.5 - mu) / sigma
