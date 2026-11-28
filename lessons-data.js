@@ -1343,6 +1343,39 @@ MODULES.push({
   ]
 });
 
+MODULES.push({
+  id: 'st5-b',
+  file: 'lessons/st5b.js',
+  v: 1,
+  track: 'statistics',
+  title: 'Module 5: Hypothesis Testing',
+  lessons: [
+    { id: 'st-5-2', title: "5.2 Comparing averages: one-sample and Welch's t-tests", ex: 5 }
+  ]
+});
+
+MODULES.push({
+  id: 'st5-c',
+  file: 'lessons/st5c.js',
+  v: 1,
+  track: 'statistics',
+  title: 'Module 5: Hypothesis Testing',
+  lessons: [
+    { id: 'st-5-3', title: '5.3 Testing proportions and categories: z-tests and the chi-square test', ex: 5 }
+  ]
+});
+
+MODULES.push({
+  id: 'st5-d',
+  file: 'lessons/st5d.js',
+  v: 1,
+  track: 'statistics',
+  title: 'Module 5: Hypothesis Testing',
+  lessons: [
+    { id: 'st-5-4', title: '5.4 How tests go wrong: errors, power and the multiple-testing trap', ex: 5 }
+  ]
+});
+
 const PLANNED = [
   { id: 'm2', track: 'sql', title: 'Module 2: SQL Foundations' },
   { id: 'm3', track: 'sql', title: 'Module 3: Joins, the Heart of Relational Analysis' },
